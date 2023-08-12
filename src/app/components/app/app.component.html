@@ -1,0 +1,57 @@
+<!-- Toolbar -->
+<mat-toolbar color="primary">
+  <!-- Menu Button -->
+  <button mat-icon-button (click)="drawer.toggle()">
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <!-- Title -->
+  <span>OIDC² Demo</span>
+
+  <!-- Spacer -->
+  <span class="spacer"></span>
+
+  <!-- Identity Menus -->
+  <app-identity-menu *ngFor="let identity of identities" [identity]="identity"></app-identity-menu>
+
+  <!-- Identity Provider Menu Button -->
+  <button mat-icon-button matTooltip="Login" [matMenuTriggerFor]="idpMenu">
+    <mat-icon>add</mat-icon>
+  </button>
+  <!-- Identity Provider Menu -->
+  <mat-menu #idpMenu="matMenu">
+    <!-- Identity Provider Buttons -->
+    <button *ngFor="let idp of identityProviders" mat-menu-item (click)="login(idp)" [matTooltip]="'Login to ' + idp.name">
+      <!-- Identity Provider Image -->
+      <app-profile-image [picture]="idp.icon" icon="account_balance"></app-profile-image>
+      <!-- Identity Provider Name -->
+      <span>{{ idp.name }}</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>
+
+<!-- Main Content -->
+<mat-drawer-container class="main">
+  <!-- Side Menu Bar -->
+  <mat-drawer #drawer mode="side">
+    <!-- Menu List -->
+    <mat-list>
+      <!-- Menu Header -->
+      <div mat-subheader>Main Menu</div>
+
+      <!-- Email Menu Button -->
+      <mat-list-item>
+        <mat-icon matListItemIcon>mail</mat-icon>
+        <div matListItemTitle>Email</div>
+      </mat-list-item>
+      <!-- Instant Messaging Menu Button -->
+      <mat-list-item>
+        <mat-icon matListItemIcon>chat</mat-icon>
+        <div matListItemTitle>Instant Messaging</div>
+      </mat-list-item>
+    </mat-list>
+  </mat-drawer>
+
+  <!-- Current Page -->
+  <router-outlet></router-outlet>
+</mat-drawer-container>

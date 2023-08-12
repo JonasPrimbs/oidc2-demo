@@ -49,6 +49,7 @@ export class IdentityService {
         name: 'John Smith',
         given_name: 'John',
         family_name: 'Smith',
+        picture: 'https://thispersondoesnotexist.com/',
       },
       identityProvider,
     );

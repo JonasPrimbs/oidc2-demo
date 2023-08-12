@@ -8,9 +8,9 @@ const routes: Routes = [
   // Redirect root to emails
   { path: '', redirectTo: '/emails', pathMatch: 'full' },
   // /emails -> Emails
-  { path: 'emails', component: EmailComponent },
+  { path: 'emails', component: EmailComponent, title: 'Email - OIDC² Demo' },
   // /messages -> Instant Messages
-  { path: 'messages', component: InstantMessagingComponent },
+  { path: 'messages', component: InstantMessagingComponent, title: 'Messages - OIDC² Demo' },
 ];
 
 @NgModule({

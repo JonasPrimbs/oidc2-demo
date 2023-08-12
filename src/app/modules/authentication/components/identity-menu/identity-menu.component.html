@@ -1,6 +1,6 @@
 <!-- Menu Button -->
 <button mat-icon-button [matMenuTriggerFor]="menu" [matTooltip]="name">
-  <mat-icon>account_circle</mat-icon>
+  <profile-image [picture]="identity?.claims?.picture"></profile-image>
 </button>
 
 <!-- Menu -->

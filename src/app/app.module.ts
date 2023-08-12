@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatGridListModule } from '@angular/material/grid-list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
@@ -11,20 +13,24 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './components/app/app.component';
-import { IdentityMenuComponent } from './components/identity-menu/identity-menu.component';
-import { ProfileImageComponent } from './components/profile-image/profile-image.component';
+import { AuthenticationModule } from './modules/authentication';
+import { EmailModule } from './modules/email';
+import { InstantMessagingModule } from './modules/instant-messaging';
 
 @NgModule({
   declarations: [
     AppComponent,
-    IdentityMenuComponent,
-    ProfileImageComponent,
   ],
   imports: [
     AppRoutingModule,
+    AuthenticationModule,
     BrowserModule,
     BrowserAnimationsModule,
+    EmailModule,
+    InstantMessagingModule,
     MatButtonModule,
+    MatCardModule,
+    MatGridListModule,
     MatIconModule,
     MatListModule,
     MatMenuModule,
@@ -32,7 +38,6 @@ import { ProfileImageComponent } from './components/profile-image/profile-image.
     MatToolbarModule,
     MatTooltipModule,
   ],
-  providers: [],
   bootstrap: [AppComponent],
 })
 export class AppModule { }

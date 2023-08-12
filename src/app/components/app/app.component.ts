@@ -1,8 +1,6 @@
 import { Component } from '@angular/core';
 
-import { Identity } from '../../classes/identity/identity.class';
-import { IdentityService } from '../../services/identity/identity.service';
-import { IdentityProvider } from '../../classes/identity-provider/identity-provider.class';
+import { Identity, IdentityService, IdentityProvider } from '../../modules/authentication';
 
 @Component({
   selector: 'app-root',

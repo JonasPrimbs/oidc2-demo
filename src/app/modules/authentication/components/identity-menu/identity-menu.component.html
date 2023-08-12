@@ -7,7 +7,7 @@
 <mat-menu #menu="matMenu">
   <!-- Identity Info -->
   <div mat-menu-item>
-    <app-profile-image [picture]="identity?.claims?.picture"></app-profile-image>
+    <profile-image [picture]="identity?.claims?.picture"></profile-image>
     <span>{{ name }}</span>
   </div>
 

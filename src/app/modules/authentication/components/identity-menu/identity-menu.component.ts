@@ -3,7 +3,7 @@ import { Component, Input } from '@angular/core';
 import { Identity } from '../../classes/identity/identity.class';
 
 @Component({
-  selector: 'app-identity-menu',
+  selector: 'identity-menu',
   templateUrl: './identity-menu.component.html',
   styleUrls: ['./identity-menu.component.scss'],
 })

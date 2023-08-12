@@ -6,13 +6,13 @@
   </button>
 
   <!-- Title -->
-  <span>OIDC² Demo</span>
+  <a class="title" routerLink="/">OIDC² Demo</a>
 
   <!-- Spacer -->
   <span class="spacer"></span>
 
   <!-- Identity Menus -->
-  <app-identity-menu *ngFor="let identity of identities" [identity]="identity"></app-identity-menu>
+  <identity-menu *ngFor="let identity of identities" [identity]="identity"></identity-menu>
 
   <!-- Identity Provider Menu Button -->
   <button mat-icon-button matTooltip="Login" [matMenuTriggerFor]="idpMenu">
@@ -23,7 +23,7 @@
     <!-- Identity Provider Buttons -->
     <button *ngFor="let idp of identityProviders" mat-menu-item (click)="login(idp)" [matTooltip]="'Login to ' + idp.name">
       <!-- Identity Provider Image -->
-      <app-profile-image [picture]="idp.icon" icon="account_balance"></app-profile-image>
+      <profile-image [picture]="idp.icon" icon="account_balance"></profile-image>
       <!-- Identity Provider Name -->
       <span>{{ idp.name }}</span>
     </button>
@@ -40,15 +40,15 @@
       <div mat-subheader>Main Menu</div>
 
       <!-- Email Menu Button -->
-      <mat-list-item>
-        <mat-icon matListItemIcon>mail</mat-icon>
-        <div matListItemTitle>Email</div>
-      </mat-list-item>
+      <a mat-menu-item routerLink="/emails">
+        <mat-icon matMenuItemIcon>mail</mat-icon>
+        <div matMenuItemTitle>Email</div>
+      </a>
       <!-- Instant Messaging Menu Button -->
-      <mat-list-item>
-        <mat-icon matListItemIcon>chat</mat-icon>
-        <div matListItemTitle>Instant Messaging</div>
-      </mat-list-item>
+      <a mat-menu-item routerLink="/messages">
+        <mat-icon matMenuItemIcon>chat</mat-icon>
+        <div matMenuItemTitle>Instant Messaging</div>
+      </a>
     </mat-list>
   </mat-drawer>
 

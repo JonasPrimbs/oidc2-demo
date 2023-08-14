@@ -13,9 +13,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './components/app/app.component';
-import { AuthenticationModule } from './modules/authentication';
+import { AuthenticationModule, IdentityProvider } from './modules/authentication';
 import { EmailModule } from './modules/email';
 import { InstantMessagingModule } from './modules/instant-messaging';
+import { AuthenticationOptions } from './modules/authentication/classes/authentication-options/authentication-options';
 
 @NgModule({
   declarations: [
@@ -23,7 +24,35 @@ import { InstantMessagingModule } from './modules/instant-messaging';
   ],
   imports: [
     AppRoutingModule,
-    AuthenticationModule,
+    AuthenticationModule.forRoot(
+      new AuthenticationOptions([
+        new IdentityProvider(
+          'Keycloak',
+          'http://op.localhost/realms/ict',
+          'oidc2-demo',
+          undefined,
+          'https://upload.wikimedia.org/wikipedia/commons/2/29/Keycloak_Logo.png',
+          [
+            'openid',
+            'profile',
+            'email',
+          ],
+        ),
+        new IdentityProvider(
+          'Google',
+          'https://accounts.google.com',
+          '234907810572-qbo2aqu2l84de8kvm1o2l7j93pfcsh5u.apps.googleusercontent.com',
+          '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',
+          'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+          [
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile',
+            'https://mail.google.com/',
+          ],
+        ),
+      ]),
+    ),
     BrowserModule,
     BrowserAnimationsModule,
     EmailModule,

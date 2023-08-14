@@ -7,6 +7,7 @@ import { encodeBase64url } from '../../../../byte-array-converter';
 import { Identity } from '../../classes/identity/identity.class';
 import { IdentityProvider } from '../../classes/identity-provider/identity-provider.class';
 import { OAUTH_AUTH_CODE_KEY_PREFIX } from '../../pages/oidc-redirect/oidc-redirect.component';
+import { AuthenticationOptions } from '../../classes/authentication-options/authentication-options';
 
 @Injectable({
   providedIn: 'root',
@@ -26,33 +27,7 @@ export class IdentityService {
   /**
    * Internal array of identity providers.
    */
-  private readonly _identityProviders: IdentityProvider[] = [
-    new IdentityProvider(
-      'Keycloak',
-      'http://op.localhost/realms/ict',
-      'oidc2-demo',
-      undefined,
-      'https://upload.wikimedia.org/wikipedia/commons/2/29/Keycloak_Logo.png',
-      [
-        'openid',
-        'profile',
-        'email',
-      ],
-    ),
-    new IdentityProvider(
-      'Google',
-      'https://accounts.google.com',
-      '234907810572-qbo2aqu2l84de8kvm1o2l7j93pfcsh5u.apps.googleusercontent.com',
-      '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',
-      'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
-      [
-        'openid',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://mail.google.com/',
-      ],
-    ),
-  ];
+  private readonly _identityProviders: IdentityProvider[];
 
   /**
    * Gets an unmodifiable array of identity providers.
@@ -67,7 +42,10 @@ export class IdentityService {
    */
   constructor(
     private readonly http: HttpClient,
-  ) { }
+    private readonly authenticationOptions: AuthenticationOptions,
+  ) {
+    this._identityProviders = authenticationOptions.identityProviders;
+  }
 
   /**
    * Generates a random string.

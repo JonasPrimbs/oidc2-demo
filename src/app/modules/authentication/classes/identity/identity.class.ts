@@ -20,10 +20,16 @@ export class Identity {
    * Constructs a new Identity.
    * @param _claims Identity claims.
    * @param identityProvider Identity provider.
+   * @param accessToken OAuth 2 Access Token.
+   * @param accessTokenExpiry Expiration Date of the OAuth 2 Access Token.
+   * @param refreshToken OAuth 2 Refresh Token.
    */
   constructor(
     private readonly _claims: Partial<IdentityClaims>,
     public readonly identityProvider: IdentityProvider,
+    private readonly accessToken?: string,
+    private readonly accessTokenExpiry?: Date,
+    private readonly refreshToken?: string,
   ) { }
 
   /**

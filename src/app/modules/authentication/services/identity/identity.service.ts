@@ -252,4 +252,68 @@ export class IdentityService {
 
     return identity;
   }
+
+  /**
+   * Generates a Proof-of-Possession Token.
+   * @param identity Identity.
+   * @param keyPair Asymmetric signing key pair.
+   * @param claims Identity claims.
+   * @returns PoP Token.
+   */
+  private async generatePoPToken(identity: Identity, keyPair: CryptoKeyPair, claims: string[]) {
+    const now = new Date();
+    return await new jose.SignJWT({
+      nonce: this.generateRandomString(20),
+      token_claims: claims.join(' '),
+      token_lifetime: 3600,
+      token_nonce: this.generateRandomString(20),
+    }).setProtectedHeader({
+      alg: 'ES384',
+      typ: 'JWT',
+      jwk: await crypto.subtle.exportKey('jwk', keyPair.publicKey),
+    }).setAudience(
+      identity.identityProvider.baseUrl,
+    ).setIssuer(
+      identity.identityProvider.clientId,
+    ).setSubject(
+      identity.claims.sub!,
+    ).setNotBefore(
+      Math.floor(now.getTime() / 1000),
+    ).setIssuedAt(
+      Math.floor(now.getTime() / 1000),
+    ).setExpirationTime(
+      Math.floor(now.getTime() / 1000) + 30,
+    ).setJti(
+      this.generateRandomString(20),
+    ).sign(keyPair.privateKey);
+  }
+
+  /**
+   * Requests an Identity Certification Token.
+   * @param identity Identity to request ICT for.
+   * @param keyPair Asymmetric authentication key pair.
+   * @param claims Identity claims to request.
+   * @returns Obtained Identity Certification Token.
+   */
+  public async requestIct(identity: Identity, keyPair: CryptoKeyPair, claims: string[]): Promise<string> {
+    // Generate PoP Token.
+    const popToken = this.generatePoPToken(identity, keyPair, claims);
+
+    // Send ICT Token Request.
+    const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/userinfo/ict';
+    const result = await firstValueFrom(
+      this.http.post<Record<string, any>>(
+        ictEndpoint,
+        popToken,
+        {
+          headers: {
+            'Content-Type': 'application/jwt',
+            'Authorization': `bearer ${identity.accessToken}`,
+          },
+        },
+      ),
+    );
+
+    return result['id_assertion_token'];
+  }
 }

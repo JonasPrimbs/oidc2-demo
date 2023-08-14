@@ -27,7 +27,7 @@ export class Identity {
   constructor(
     private readonly _claims: Partial<IdentityClaims>,
     public readonly identityProvider: IdentityProvider,
-    private readonly accessToken?: string,
+    public readonly accessToken?: string,
     private readonly accessTokenExpiry?: Date,
     private readonly refreshToken?: string,
   ) { }

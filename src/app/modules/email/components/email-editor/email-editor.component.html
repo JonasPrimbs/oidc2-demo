@@ -1,0 +1,34 @@
+<form class="email-form" [formGroup]="emailForm">
+  <!-- From Input -->
+  <mat-form-field>
+    <mat-label>From</mat-label>
+    <select matNativeControl autofocus required>
+      <option *ngFor="let sender of senders" [value]="sender">
+        {{ sender.claims.name }} &#60;{{ sender.claims.email }}&#62;
+      </option>
+    </select>
+  </mat-form-field>
+
+  <!-- To Input -->
+  <mat-form-field appearance="fill">
+    <mat-label>To</mat-label>
+    <input matInput placeholder="receiver@mail.example.com" required type="email">
+  </mat-form-field>
+
+  <!-- Subject Input -->
+  <mat-form-field appearance="fill">
+    <mat-label>Subject</mat-label>
+    <input matInput placeholder="Subject" required>
+  </mat-form-field>
+
+  <!-- Body Input -->
+  <mat-form-field class="full-height">
+    <mat-label>Body</mat-label>
+    <textarea matInput cdkTextareaAutosize required #autosize="cdkTextareaAutosize"></textarea>
+  </mat-form-field>
+
+  <!-- Send Button -->
+  <button mat-fab class="send-button" color="primary" type="submit">
+    <mat-icon>send</mat-icon>
+  </button>
+</form>

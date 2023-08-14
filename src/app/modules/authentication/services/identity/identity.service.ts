@@ -206,6 +206,8 @@ export class IdentityService {
     const pkceChallenge = await this.computePkceCodeChallenge(pkceVerifier);
     const redirectUri = window.location.origin + '/oidc-redirect';
 
+    const requestScopes = scopes ?? identityProvider.scopes ?? [];
+
     // Perform Authorization Request.
     const authorizationCode = await this.requestAuthorizationCode({
       clientId: identityProvider.clientId,
@@ -213,7 +215,7 @@ export class IdentityService {
       state: this.generateRandomString(16),
       pkceChallenge: pkceChallenge,
       authorizationEndpoint: discoveryDocument['authorization_endpoint'],
-      scopes: scopes ?? identityProvider.scopes ?? [],
+      scopes: requestScopes,
     });
 
     // Perform Token Request.
@@ -239,6 +241,7 @@ export class IdentityService {
       identityProvider,
       accessToken,
       accessTokenExpiry,
+      requestScopes,
       refreshToken,
     );
 

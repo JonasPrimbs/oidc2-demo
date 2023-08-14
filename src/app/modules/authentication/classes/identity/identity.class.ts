@@ -29,6 +29,7 @@ export class Identity {
     public readonly identityProvider: IdentityProvider,
     public readonly accessToken?: string,
     private readonly accessTokenExpiry?: Date,
+    public readonly scopes?: string[],
     private readonly refreshToken?: string,
   ) { }
 

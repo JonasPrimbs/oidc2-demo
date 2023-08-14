@@ -1,1 +1,10 @@
-<p>Email is coming soon.</p>
+<ul>
+  <li *ngFor="let id of identities">
+    <span>{{ id.claims.name }} ({{ id.identityProvider.name }})</span>
+    <button (click)="test(id)">
+      Request ICT
+    </button>
+  </li>
+</ul>
+
+<app-email-editor></app-email-editor>

@@ -1,10 +1,5 @@
-<ul>
-  <li *ngFor="let id of identities">
-    <span>{{ id.claims.name }} ({{ id.identityProvider.name }})</span>
-    <button (click)="test(id)">
-      Request ICT
-    </button>
-  </li>
-</ul>
+<!-- PGP Key Import -->
+<app-pgp-import></app-pgp-import>
 
+<!-- Email Editor -->
 <app-email-editor></app-email-editor>

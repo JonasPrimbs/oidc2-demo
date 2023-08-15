@@ -10,6 +10,16 @@
     </mat-select>
   </mat-form-field>
 
+  <!-- Key Selector -->
+  <mat-form-field>
+    <mat-label>PGP Key</mat-label>
+    <mat-select matNativeControl autofocus formControlName="key" required>
+      <mat-option *ngFor="let key of availableKeys" [value]="key">
+        {{ key.name }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
   <!-- To Input -->
   <mat-form-field appearance="fill">
     <mat-label>To</mat-label>

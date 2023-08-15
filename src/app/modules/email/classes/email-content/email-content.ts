@@ -15,7 +15,7 @@ export class EmailContent implements EmailPart {
    * @returns Body as string.
    */
   getBody(): string {
-    return this.body;
+    return window.btoa(this.body);
   }
 
   /**
@@ -24,8 +24,8 @@ export class EmailContent implements EmailPart {
    */
   public getMimeHeader(): EmailContentHeader {
     return {
-      'MIME-Version': '1.0',
-      'Content-Type': 'text/plain; charset="UTF-8"',
+      'Content-Type': 'text/plain; charset="UTF-8"; format=flowed',
+      'Content-Transfer-Encoding': 'base64',
     };
   }
 }

@@ -7,11 +7,15 @@ export class AttachmentFile implements EmailPart {
    * @param name File name.
    * @param body Base64 encoded body.
    * @param fileType MIME type of the file.
+   * @param description Description.
+   * @param encoding Encoding.
    */
   constructor(
     public readonly name: string,
     public readonly body: string,
     public readonly fileType: string,
+    public readonly description: string,
+    public readonly encoding?: string,
   ) { }
 
   /**
@@ -27,11 +31,16 @@ export class AttachmentFile implements EmailPart {
    * @returns MIME header object.
    */
   public getMimeHeader(): AttachmentHeader {
-    return {
-      'Content-Type': this.fileType,
-      'MIME-Version': '1.0',
-      'Content-Transfer-Encoding': 'base64',
-      'Content-Disposition': `attachment; filename=${this.name}`,
+    const result: AttachmentHeader = {
+      'Content-Type': `${this.fileType}; name="${this.name}"`,
+      'Content-Description': this.description,
+      'Content-Disposition': `attachment; filename="${this.name}"`,
     };
+
+    if (this.encoding) {
+      result['Content-Transfer-Encoding'] = this.encoding;
+    }
+
+    return result;
   }
 }

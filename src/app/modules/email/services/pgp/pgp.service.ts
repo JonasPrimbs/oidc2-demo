@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { EventEmitter, Injectable } from '@angular/core';
 import * as openpgp from 'openpgp';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 
@@ -19,6 +19,8 @@ export class PgpService {
     return [ ...this._privateKeys ];
   }
 
+  public readonly privateKeysChange = new EventEmitter<void>();
+
   /**
    * Adds a PGP private key to privateKeys.
    * @param privateKey PGP Private Key to add.
@@ -31,6 +33,8 @@ export class PgpService {
     for (const identity of privateKey.identities) {
       this.addKeyFor(identity, privateKey);
     }
+
+    this.privateKeysChange.emit();
   }
 
   /**
@@ -40,6 +44,8 @@ export class PgpService {
   public removePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): void {
     const index = this._privateKeys.indexOf(privateKey);
     this._privateKeys.splice(index, 1);
+
+    this.privateKeysChange.emit();
   }
 
   // Identity -> Key Mapping:
@@ -110,7 +116,7 @@ export class PgpService {
    * @param armoredPublicKey Armored public key to import.
    * @returns Imported PGP public key.
    */
-  public async importPublicKey(armoredPublicKey: string): Promise<openpgp.Key> {
+  public async importPublicKey(armoredPublicKey: string): Promise<openpgp.PublicKey> {
     return await openpgp.readKey({
       armoredKey: armoredPublicKey,
     });

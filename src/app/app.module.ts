@@ -13,10 +13,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './components/app/app.component';
-import { AuthenticationModule, IdentityProvider } from './modules/authentication';
+import { AuthenticationModule, AuthenticationOptions, IdentityProvider } from './modules/authentication';
 import { EmailModule } from './modules/email';
 import { InstantMessagingModule } from './modules/instant-messaging';
-import { AuthenticationOptions } from './modules/authentication/classes/authentication-options/authentication-options';
 
 @NgModule({
   declarations: [
@@ -37,6 +36,7 @@ import { AuthenticationOptions } from './modules/authentication/classes/authenti
             'profile',
             'email',
           ],
+          true,
         ),
         new IdentityProvider(
           'Google',

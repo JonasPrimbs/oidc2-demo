@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { AuthenticationOptions } from './classes/authentication-options/authentication-options';
+import { AuthenticationOptions } from './classes/authentication-options/authentication-options.class';
 import { IdentityMenuComponent } from './components/identity-menu/identity-menu.component';
 import { ProfileImageComponent } from './components/profile-image/profile-image.component';
 import { OidcRedirectComponent } from './pages/oidc-redirect/oidc-redirect.component';

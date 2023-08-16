@@ -20,6 +20,16 @@
     </mat-select>
   </mat-form-field>
 
+  <!-- IdP Selector -->
+  <mat-form-field>
+    <mat-label>Identities</mat-label>
+    <mat-select matNativeControl autofocus formControlName="identities" multiple>
+      <mat-option *ngFor="let id of availableIdentities" [value]="id">
+        {{ id.claims.name }} ({{ id.identityProvider.name }})
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
   <!-- To Input -->
   <mat-form-field appearance="fill">
     <mat-label>To</mat-label>

@@ -24,6 +24,14 @@ export class Email {
   ) { }
 
   /**
+   * Gets the PGP Fingerprint of the PGP Private Key.
+   * @returns PGP Fingerprint.
+   */
+  public getPgpFingerprint(): string | undefined {
+    return this.pgpPrivateKey?.key.getFingerprint();
+  }
+
+  /**
    * Generates a MIME Multipart header for an email.
    * @param boundary MIME Boundary.
    * @returns MIME Multipart header.

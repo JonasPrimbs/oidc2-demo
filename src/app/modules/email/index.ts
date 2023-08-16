@@ -7,6 +7,7 @@ export * from './pages/email/email.component';
 export * from './services/email/email.service';
 export * from './services/pgp/pgp.service';
 export * from './types/attachment-header.interface';
+export * from './types/e2e-pop-pgp-options.interface';
 export * from './types/email-content-header.interface';
 export * from './types/email-header.interface';
 export * from './types/email-part.interface';

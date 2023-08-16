@@ -1,4 +1,4 @@
-import { AuthenticationOptions } from './authentication-options';
+import { AuthenticationOptions } from './authentication-options.class';
 
 describe('AuthenticationOptions', () => {
   it('should create an instance', () => {

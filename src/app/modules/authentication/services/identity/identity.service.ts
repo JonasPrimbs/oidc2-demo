@@ -4,10 +4,11 @@ import * as jose from 'jose';
 import { firstValueFrom } from 'rxjs';
 
 import { encodeBase64url } from '../../../../byte-array-converter';
+import { AuthenticationOptions } from '../../classes/authentication-options/authentication-options.class';
 import { Identity } from '../../classes/identity/identity.class';
 import { IdentityProvider } from '../../classes/identity-provider/identity-provider.class';
 import { OAUTH_AUTH_CODE_KEY_PREFIX } from '../../pages/oidc-redirect/oidc-redirect.component';
-import { AuthenticationOptions } from '../../classes/authentication-options/authentication-options';
+import { E2ePopClaims } from '../../types/e2e-pop-claims.interface';
 
 @Injectable({
   providedIn: 'root',
@@ -39,10 +40,11 @@ export class IdentityService {
   /**
    * Constructs a new Identity Service.
    * @param http HTTP Client instance.
+   * @param authenticationOptions Authentication Options.
    */
   constructor(
     private readonly http: HttpClient,
-    private readonly authenticationOptions: AuthenticationOptions,
+    authenticationOptions: AuthenticationOptions,
   ) {
     this._identityProviders = authenticationOptions.identityProviders;
   }
@@ -52,7 +54,7 @@ export class IdentityService {
    * @param byteLength Length of the string in bytes.
    * @returns Random String.
    */
-  private generateRandomString(byteLength: number = 16): string {
+  public generateRandomString(byteLength: number = 16): string {
     const arrayBuffer = new Uint8Array(byteLength);
     const randomBytes = crypto.getRandomValues(arrayBuffer);
     return encodeBase64url(randomBytes);
@@ -300,7 +302,7 @@ export class IdentityService {
    */
   public async requestIct(identity: Identity, keyPair: CryptoKeyPair, claims: string[]): Promise<string> {
     // Generate PoP Token.
-    const popToken = this.generatePoPToken(identity, keyPair, claims);
+    const popToken = await this.generatePoPToken(identity, keyPair, claims);
 
     // Send ICT Token Request.
     const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/userinfo/ict';
@@ -318,5 +320,37 @@ export class IdentityService {
     );
 
     return result['id_assertion_token'];
+  }
+
+  /**
+   * Generates an End-to-End Proof-of-Possession Token.
+   * @param keyPair Key Pair whose private key is used to sign the token and whose public key is used to generate the JWK Thumbprint with.
+   * @param claims Claims of the payload.
+   * @returns Generated End-to-End Proof-of-Possession Token.
+   */
+  public async generateE2ePoP(keyPair: CryptoKeyPair, claims: E2ePopClaims): Promise<string> {
+    // Generate the JSON Web Key Thumbprint of the public key.
+    const jwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const jkt = await jose.calculateJwkThumbprint({
+      kty: jwk.kty!,
+      crv: jwk.crv!,
+      x: jwk.x!,
+      y: jwk.y!,
+    });
+
+    // Generate the E2E PoP Token.
+    return await new jose.SignJWT(
+      // Payload:
+      {
+        ...claims,
+      },
+    ).setProtectedHeader(
+      // Header:
+      {
+        alg: 'ES384',
+        typ: 'jwt+e2epop',
+        jkt: jkt,
+      },
+    ).sign(keyPair.privateKey)
   }
 }

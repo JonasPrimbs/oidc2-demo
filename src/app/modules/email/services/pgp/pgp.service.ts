@@ -94,6 +94,8 @@ export class PgpService {
       userIDs: [userId],
       passphrase: passphrase,
       format: 'armored',
+      date: new Date(),
+      keyExpirationTime: 60*60*24*7, // 1 week.
     });
 
     // Read the key pair and return it.

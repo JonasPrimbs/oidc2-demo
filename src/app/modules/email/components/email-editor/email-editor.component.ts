@@ -69,7 +69,7 @@ export class EmailEditorComponent implements OnInit {
   /**
    * Gets an email instance from the email form.
    */
-  private get email(): Email | undefined {
+  private async getEmail(): Promise<Email | undefined> {
     if (!this.emailForm.controls.from.value) {
       return undefined;
     } else {
@@ -80,7 +80,14 @@ export class EmailEditorComponent implements OnInit {
         [
           new EmailContent(this.emailForm.controls.body.value ?? ''),
         ],
-        this.emailForm.controls.key.value ?? undefined,
+        this.emailForm.controls.key.value ?? await (async () => {
+          const passphrase = this.identityService.generateRandomString(20);
+          const keyPair = await this.pgpService.generateKeyPair({
+            email: this.emailForm.controls.from.value?.claims.email!,
+            name: this.emailForm.controls.from.value?.claims.name!,
+          }, passphrase);
+          return { key: keyPair.privateKey, passphrase };
+        })(),
       );
     }
   }
@@ -217,7 +224,7 @@ export class EmailEditorComponent implements OnInit {
    */
   public async sendEmail(): Promise<void> {
     // Get the email instance to send.
-    const email = this.email;
+    const email = await this.getEmail();
     if (!email) return;
 
     // Generate new key pair.

@@ -20,7 +20,7 @@ export class Email {
     public readonly receiver: string,
     public readonly subject: string,
     public readonly parts: EmailPart[], 
-    private readonly pgpPrivateKey?: { key: openpgp.PrivateKey, passphrase: string },
+    private readonly pgpPrivateKey: { key: openpgp.PrivateKey, passphrase: string },
   ) { }
 
   /**
@@ -189,7 +189,10 @@ export class Email {
    */
   public async toRawString(): Promise<string> {
     // Get email string.
-    const mailString = await this.toEmailString(this.pgpPrivateKey!.key, this.pgpPrivateKey!.passphrase);
+    const mailString = await this.toEmailString(
+      this.pgpPrivateKey.key,
+      this.pgpPrivateKey.passphrase,
+    );
     return window.btoa(mailString)
       .replace(/\+/g, '-')
       .replace(/\//g, '_')

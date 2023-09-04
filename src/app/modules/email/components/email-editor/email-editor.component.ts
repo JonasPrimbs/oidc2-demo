@@ -132,8 +132,10 @@ export class EmailEditorComponent implements OnInit {
           [
             'name',
             'email',
+            'email_verified',
             'given_name',
             'family_name',
+            'website',
           ],
         ),
       ),
@@ -184,7 +186,7 @@ export class EmailEditorComponent implements OnInit {
         // Generate an End-to-End Proof-of-Possession Token.
         return await this.identityService.generateE2ePoP(
           keyPair, {
-            iss: (decodedIct.aud! instanceof Array) ? decodedIct.aud![0] : decodedIct.aud!,
+            iss: 'oidc2-demo',
             aud: receiver,
             sub: decodedIct.sub!,
             jti: this.identityService.generateRandomString(20),

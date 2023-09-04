@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import * as jose from 'jose';
 import { firstValueFrom } from 'rxjs';
+import { SignE2EPoPToken, SignPoPToken } from 'oidc-squared';
+import { ICTResponse } from 'oidc-squared/dist/rest';
 
 import { encodeBase64url } from '../../../../byte-array-converter';
 import { AuthenticationOptions } from '../../classes/authentication-options/authentication-options.class';
@@ -265,32 +267,16 @@ export class IdentityService {
    * @param claims Identity claims.
    * @returns PoP Token.
    */
-  private async generatePoPToken(identity: Identity, keyPair: CryptoKeyPair, claims: string[]) {
-    const now = new Date();
-    return await new jose.SignJWT({
-      nonce: this.generateRandomString(20),
-      token_claims: claims.join(' '),
-      token_lifetime: 3600,
-      token_nonce: this.generateRandomString(20),
-    }).setProtectedHeader({
-      alg: 'ES384',
-      typ: 'JWT',
-      jwk: await crypto.subtle.exportKey('jwk', keyPair.publicKey),
-    }).setAudience(
-      identity.identityProvider.baseUrl,
-    ).setIssuer(
-      identity.identityProvider.clientId,
-    ).setSubject(
-      identity.claims.sub!,
-    ).setNotBefore(
-      Math.floor(now.getTime() / 1000),
-    ).setIssuedAt(
-      Math.floor(now.getTime() / 1000),
-    ).setExpirationTime(
-      Math.floor(now.getTime() / 1000) + 30,
-    ).setJti(
-      this.generateRandomString(20),
-    ).sign(keyPair.privateKey);
+  private async generatePoPToken(identity: Identity, keyPair: CryptoKeyPair) {
+    const publicKey = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const popToken = new SignPoPToken();
+    console.log('popToken', JSON.stringify(popToken));
+    return await popToken
+      .setPublicKey('ES384', publicKey)
+      .setIssuer(identity.identityProvider.clientId)
+      .setSubject(identity.claims.sub!)
+      .setAudience(identity.identityProvider.baseUrl)
+      .sign(keyPair.privateKey);
   }
 
   /**
@@ -302,12 +288,12 @@ export class IdentityService {
    */
   public async requestIct(identity: Identity, keyPair: CryptoKeyPair, claims: string[]): Promise<string> {
     // Generate PoP Token.
-    const popToken = await this.generatePoPToken(identity, keyPair, claims);
+    const popToken = await this.generatePoPToken(identity, keyPair);
 
     // Send ICT Token Request.
     const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/userinfo/ict';
     const result = await firstValueFrom(
-      this.http.post<Record<string, any>>(
+      this.http.post<ICTResponse>(
         ictEndpoint,
         popToken,
         {
@@ -319,7 +305,7 @@ export class IdentityService {
       ),
     );
 
-    return result['id_assertion_token'];
+    return result.identity_certification_token;
   }
 
   /**
@@ -329,28 +315,15 @@ export class IdentityService {
    * @returns Generated End-to-End Proof-of-Possession Token.
    */
   public async generateE2ePoP(keyPair: CryptoKeyPair, claims: E2ePopClaims): Promise<string> {
-    // Generate the JSON Web Key Thumbprint of the public key.
-    const jwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-    const jkt = await jose.calculateJwkThumbprint({
-      kty: jwk.kty!,
-      crv: jwk.crv!,
-      x: jwk.x!,
-      y: jwk.y!,
-    });
-
-    // Generate the E2E PoP Token.
-    return await new jose.SignJWT(
-      // Payload:
-      {
-        ...claims,
-      },
-    ).setProtectedHeader(
-      // Header:
-      {
-        alg: 'ES384',
-        typ: 'jwt+e2epop',
-        jkt: jkt,
-      },
-    ).sign(keyPair.privateKey)
+    const jkt = await jose.calculateJwkThumbprint(
+      await jose.exportJWK(keyPair.publicKey),
+      'sha256',
+    );
+    return await new SignE2EPoPToken()
+      .setThumbprint('ES384', jkt)
+      .setIssuer(claims.iss)
+      .setSubject(claims.sub)
+      .setAudience(claims.aud)
+      .sign(keyPair.privateKey);
   }
 }

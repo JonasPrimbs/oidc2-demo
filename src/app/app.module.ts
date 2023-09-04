@@ -35,7 +35,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
             'openid',
             'profile',
             'email',
-            'e2e_email',
+            'e2e_auth_email',
           ],
           true,
         ),

@@ -30,7 +30,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
           'http://op.localhost/realms/ict',
           'oidc2-demo',
           undefined,
-          'https://upload.wikimedia.org/wikipedia/commons/2/29/Keycloak_Logo.png',
+          'assets/keycloak_logo.png',
           [
             'openid',
             'profile',
@@ -44,7 +44,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
           'https://accounts.google.com',
           '234907810572-qbo2aqu2l84de8kvm1o2l7j93pfcsh5u.apps.googleusercontent.com',
           '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',
-          'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+          'assets/google_logo.svg',
           [
             'openid',
             'https://www.googleapis.com/auth/userinfo.email',

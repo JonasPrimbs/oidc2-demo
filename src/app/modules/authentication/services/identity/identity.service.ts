@@ -291,7 +291,7 @@ export class IdentityService {
     const popToken = await this.generatePoPToken(identity, keyPair);
 
     // Send ICT Token Request.
-    const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/userinfo/ict';
+    const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/ict';
     const result = await firstValueFrom(
       this.http.post<ICTResponse>(
         ictEndpoint,

@@ -25,6 +25,8 @@ FROM nginx:1.25-alpine AS runtime
 RUN apk update
 
 # Copy nginx config
-COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY ./nginx.conf /etc/nginx/conf.d/nginx.conf
 # Copy static files
 COPY --from=builder /app/dist/oidc2-demo /var/www/app
+
+EXPOSE 4200

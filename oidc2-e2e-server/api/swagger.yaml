@@ -1,0 +1,256 @@
+openapi: 3.0.3
+info:
+  title: Endpoint for establishing and maintaining an encrypted client-server session
+  description: "This endpoint establishes an end-to-end encrypted client-server session\
+    \ after authenticating the client with its Id Certification Token (Client_ICT).\
+    \ After the successful exchange of DH parameters, the client can communicate with\
+    \ the server, upload, download or delete files on the server with all communication\
+    \ being encrypted on application layer."
+  version: "0.1"
+servers:
+- url: http://rs.localhost
+tags:
+- name: sid
+  description: Establishes the encrypted session
+- name: data
+  description: "Handles file upload, download and delete during the encrypted server-client-session."
+- name: ping
+  description: Refresh a valid sessionToken before it gets outdated
+paths:
+  /sid:
+    post:
+      tags:
+      - sid
+      summary: Establish new client-server-session
+      description: "Receive sign(K^-_C, ICT_Client+client's public DH+stateId), respond\
+        \ with sign(K^-_S, ICT_Server+Server's public DH params+HMAC(K_S, enc(K_S,\
+        \ DH^-_S, DH_cs))+stateId)"
+      operationId: genSession
+      requestBody:
+        description: Authenticate ICT_Client and respond with ICT_Server and encrypted
+          Session Token
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/sessionRequestJwt'
+        required: true
+      responses:
+        "201":
+          description: |
+            **Created**
+
+            Returns an encrypted and authenticated SessionToken JWT (can only be decrypted by a server instance) containing the shared DH secret and the server's private DH parameter for this session as well as ICT_Server and stateId. The whole message is signed with the server's private key.
+          content:
+            application/jwt:
+              schema:
+                $ref: '#/components/schemas/sessionResponseJwt'
+        "403":
+          description: "**Forbidden**\n\nPossible reasons:\n- ICT_Client not valid\n\
+            - Client's signature not valid\n- Already received or used ICT_Client\
+            \ before\n  \n"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorStatus'
+              examples:
+                ICT_ClientInvalid:
+                  summary: ICT_Client not valid
+                  value:
+                    code: 403
+                    status: Forbidden
+                    description: ICT_Client not valid
+                SignInvalid:
+                  summary: Client's signature not valid
+                  value:
+                    code: 403
+                    status: Forbidden
+                    description: Client's signature not valid
+                jtiKnown:
+                  summary: Already received Client_ICT with same jti
+                  value:
+                    code: 403
+                    status: Forbidden
+                    description: ICT has been already used.
+        "500":
+          description: |
+            **Internal Server Error**
+
+            Possible reasons:
+            - Connection to OpenID Provider failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorStatus'
+              examples:
+                Unknown:
+                  summary: Unknown Server Error
+                  value:
+                    code: 500
+                    status: Internal Server Error
+                    description: Unknown Server Error.
+  /data:
+    get:
+      tags:
+      - data
+      summary: Download file from server
+      description: Receive a GET file request and respond with the encrypted file.
+        The file path in the GET request header is DH encrypted.
+      responses:
+        "200":
+          description: |
+            **OK**
+
+            Contains the requested file DH encrypted in the body. Furthermore, it contains a new sessionToken and new server's DH public parameter in the header.
+        "403":
+          description: |
+            **Forbidden**
+
+            Possible reasons:
+            - invalid/outdated sessionToken
+            - invalid MACs
+            - wrong encryption
+        "500":
+          description: |
+            **Internal Server Error**
+
+            Possible reasons:
+            - couldn't find file
+    post:
+      tags:
+      - data
+      summary: Upload file to server
+      description: Receive an encrypted file in the message body. Save it.
+      operationId: postFile
+      requestBody:
+        description: Receive a JSON containing the encrypted file and a valid sessionToken.
+        content:
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/UploadFile'
+        required: true
+      responses:
+        "201":
+          description: |
+            **Created**
+
+            Contains a DH encrypted location header to the new file (response to create), a status (response to delete) or a file (response to read). Furthermore, it contains a new sessionToken and new server's DH public parameter
+        "403":
+          description: |
+            **Forbidden**
+
+            Possible reasons:
+            - invalid/outdated sessionToken
+            - invalid MACs
+            - wrong encryption
+        "500":
+          description: |
+            **Internal Server Error**
+
+            Possible reasons:
+            - couldn't create file
+    delete:
+      tags:
+      - data
+      summary: Delete a file on the server
+      description: Receive a delete request for a certain file on the server. File
+        path is DH encrypted in the header.
+      responses:
+        "200":
+          description: |
+            **OK**
+
+            The file was deleted successfully.
+        "403":
+          description: |
+            **Forbidden**
+
+            Possible reasons:
+            - invalid/outdated sessionToken
+            - invalid MACs
+            - wrong encryption
+        "500":
+          description: |
+            **Internal Server Error**
+
+            Possible reasons:
+            - couldn't find file
+  /ping:
+    get:
+      tags:
+      - ping
+      summary: Refresh session token
+      description: Receive a valid sessionToken in the header and answer with a new
+        one with refreshed expiration date.
+      operationId: ping
+      responses:
+        "201":
+          description: |
+            **Created**
+
+            Contains a new sessionToken with adjusted expiration date and a new server's public DH parameter. Authenticated with new DH shared secret
+        "403":
+          description: |
+            **Forbidden**
+
+            Possible reasons:
+            - invalid/outdated sessionToken
+            - invalid MACs
+        "500":
+          description: |
+            **Internal Server Error**
+
+            Possible reasons:
+            - could not create a new sessionToken
+components:
+  schemas:
+    ErrorStatus:
+      required:
+      - code
+      - status
+      type: object
+      properties:
+        code:
+          maximum: 599
+          minimum: 100
+          type: integer
+          description: Status Code
+          format: int
+        status:
+          type: string
+          description: Status Text
+        description:
+          type: string
+          description: More detailed description
+      description: Information about ocurred error.
+    sessionRequestJwt:
+      type: string
+      description: "A JSON Web Token (JWT) wich MUST\n  - be signed with an asymmetric\
+        \ algorithm (`ES256`, `ES384`, `ES512`, `RS256`, `RS384`, `RS512`, or `EdDSA`\
+        \ allowed). Example: `\"alg\": \"ES256\"` in the header.\n  - have the type\
+        \ `\"typ\": \"JWT\"`in the header.\n  - contain the client's public key in\
+        \ the JWT header (`\"jwk\": <public-key>`).\n  - contain an encoded valid\
+        \ ICT, signed by OpenID provider's private key (`\"ict\": <client's ict>`).\n\
+        \  - contain public DH params used by the client (\"`dh\"`: <client's public\
+        \ DH parameters>`).\n  - a random stateId (`\"state\": 1`)\n  - be signed\
+        \ with the client's private key \n"
+      format: jwt
+      example: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6ImNYUThiZGVOZWVTd2ZMa0h6TWZBVUZySGxMWFpXdkpybW9NMnNDUEdVbmciLCJ5IjoiN0Rwd21Pb0hJbmQwUWNSRVJUS1pBQ2k5YndzYTVnR0tER3hGeG00OEdSQSJ9fQ.eyJpY3QiOiJleUpoYkdjaU9pSkZVekkxTmlJc0luUjVjQ0k2SWtwWFZDdEVVRTlRSWl3aWEybGtJam94ZlEuZXlKcGMzTWlPaUpvZEhSd2N6b3ZMMkZqWTI5MWJuUnpMbVY0WVcxd2JHVXViM0puTHlJc0luTjFZaUk2SW1wdmFHNHVjMjFwZEdoQVlXTmpiM1Z1ZEhNdVpYaGhiWEJzWlM1dmNtY2lMQ0pwWVhRaU9qRTJOVGt6TlRVeU1EVXNJbTVpWmlJNk1UWTFPVE0xTlRJd05Td2laWGh3SWpveE5qVTVNelU0T0RBMUxDSnViMjVqWlNJNklsWnFabFUwTmxvMWVXdEphRzQzYWtwNmNWcHZWMHNyY0dGeE5qTkZTM1ZJSWl3aWFuUnBJam9pYjJ0a1RtSnRiSE5wY0VsRk5ETmtVVzl3ZVRoRmRHZHVaamcwUTJKTmEyUWlMQ0pqYm1ZaU9uc2lhbmRySWpwN0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lZMWhST0dKa1pVNWxaVk4zWmt4clNIcE5aa0ZWUm5KSWJFeFlXbGQyU25KdGIwMHljME5RUjFWdVp5SXNJbmtpT2lJM1JIQjNiVTl2U0VsdVpEQlJZMUpGVWxSTFdrRkRhVGxpZDNOaE5XZEhTMFJIZUVaNGJUUTRSMUpCSW4xOUxDSnVZVzFsSWpvaVNtOW9iaUJUYldsMGFDSXNJbVZ0WVdsc0lqb2lhbTlvYmk1emJXbDBhRUJ0WVdsc0xuTmhiWEJzWlM1dmNtY2lMQ0psYldGcGJGOTJaWEpwWm1sbFpDSTZkSEoxWlgwLkUzRG5lUUdRbDJOaXNKUWsxR2d3MHh1cVcwSHpPSC0zQ1VOdGNqZFpubmpXSGRZT0d6MHZ0cWtEMmdtWURpR1NkZzR1VFROdjY3a0xzTmlDSlRSZ3lBIiwiZGgiOnsiY3J2IjoiUC0yNTYiLCJleHQiOnRydWUsImtleV9vcHMiOltdLCJrdHkiOiJFQyIsIngiOiJtR1FnYk4zczFhUUt3MEJFbGdLT244VW93NE5YZGdVTDB4TUJtNDYwRGVjIiwieSI6ImZQbW9zWjdNZHo4UTMtSkRjXzU2QUFVR0l2SWJWRFJXeUFOOTVYeVFZR2sifSwic3RhdGUiOjF9.xI0cUTHTYhl5S_IKgWLZA1u1BoTtXbmYNdeFueXi2UVJcgxAZwLGg8__HUJCDQla4dt16cSZ-49yqKdaZ1IypA
+    sessionResponseJwt:
+      type: string
+      description: |
+        A JSON Web Token (JWT) which MUST
+        - be signed with an asymmetric algorithm (`ES256`, `ES384`, `ES512`, `RS256`, `RS384`, `RS512`, or `EdDSA` allowed). Example: (`"alg": ES256`).
+        - have the type `"typ": "JWT"` in the header.
+        - contain the server's public key in the JWT header (`"jwk": <public-key>`).
+        - have the server's ICT (that is provided from an RPKI) in `"ict": <ICT_Server>`
+        - contain the server's calculated public DH parameters for the client: (`"dh": <public DH parameters in jwk format>`)
+        - contain the fitting received stateID from the client in `"state"`
+        - carry the DH encrypted sessionID in `"sid": enc(DH_secret,<sessionID>)`
+        - be signed with the server's private key
+      format: jwt
+      example: eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImp3ayI6eyJhbGciOiJFUzI1NiIsImNydiI6IlAtMjU2IiwiZXh0Ijp0cnVlLCJrZXlfb3BzIjpbInZlcmlmeSJdLCJrdHkiOiJFQyIsIngiOiJ1UmJISE9vdnVFaVZ5S09NSXFSbTU1V0ZsN18waVE3emhVdTNrb2Nuam5RIiwieSI6IjhmZ2cxX0JKUzhiTVZRYVJ0SVp2UlBoTWxjMUsyTmp6QTczVVBITkNpbjQifX0.eyJpY3QiOiJleUpoYkdjaU9pSkZVekkxTmlJc0luUjVjQ0k2SWtwWFZDdEVVRTlRSWl3aWEybGtJam94ZlEuZXlKcGMzTWlPaUpvZEhSd2N6b3ZMM0p3YTJrdVpYaGhiWEJzWlM1dmNtY3ZJaXdpYzNWaUlqb2ljMlZ5ZG1WeUxtOTNibVZ5UUhKd2Eya3VaWGhoYlhCc1pTNXZjbWNpTENKcFlYUWlPakUyTlRrek5UVXlNVEFzSW01aVppSTZNVFkxT1RNMU5USXhNQ3dpWlhod0lqb3hOalU1TXpVNE9ERXdMQ0p1YjI1alpTSTZJbFpxWmt4d1kyMDFlV3REVVRVeWFrcDZjVnB2VjBzcmNESXpPRGxEUzNWRklpd2lhblJwSWpvaWIydGtUbUp0YkhOcGNFbEZORE5rVVc5d2VUaEZkR2R1WmpnMFRIQXlWbVFpTENKamJtWWlPbnNpYW5kcklqcDdJbUZzWnlJNklrVlRNalUySWl3aVkzSjJJam9pVUMweU5UWWlMQ0psZUhRaU9uUnlkV1VzSW10bGVWOXZjSE1pT2xzaWRtVnlhV1o1SWwwc0ltdDBlU0k2SWtWRElpd2llQ0k2SW5WU1lraElUMjkyZFVWcFZubExUMDFKY1ZKdE5UVlhSbXczWHpCcFVUZDZhRlYxTTJ0dlkyNXFibEVpTENKNUlqb2lPR1puWnpGZlFrcFRPR0pOVmxGaFVuUkpXblpTVUdoTmJHTXhTekpPYW5wQk56TlZVRWhPUTJsdU5DSjlmU3dpYm1GdFpTSTZJbE5sY25abGNpQlBkMjVsY2lJc0ltVnRZV2xzSWpvaWMyVnlkbVZ5TG05M2JtVnlRRzFoYVd3dWMyRnRjR3hsTG05eVp5SXNJbVZ0WVdsc1gzWmxjbWxtYVdWa0lqcDBjblZsZlEucER0SmZnOWRVaDdoSC1vYTU3b045VWVVRFlrSTRlUjFUZ0UyM3pjbFdVYjNEaDg0WktxbmJRNXcyT2JuNE1GeEhyRWMzZFV5eHpXZUtib0gtZzJqUlEiLCJkaCI6eyJjcnYiOiJQLTI1NiIsImV4dCI6dHJ1ZSwia2V5X29wcyI6W10sImt0eSI6IkVDIiwieCI6IjFxZl85OXljdUJ4Sl9Qdi1NeU9WNFh1b2c5cldSZTc0U2lRRE8xa0tCM1UiLCJ5IjoiaHltNW82NzRkU0w4S0FfekhMRVdCTm9oaW1GRHA5VUxmVkRrUlBOUUhLMCJ9LCJzdGF0ZSI6MSwic2lkIjpbNTAsMTQzLDM0LDEsMTU3LDExMywyMyw5MywyNDUsMzcsNjgsMzAsMjQ2LDM4LDg2LDE5NSwxNzAsMTM1XX0.SVEzPEyHlvbBstUdSXRxdLCiMjioph1iELzXk5ImlXyKcxfTuzN_hLzxuiDrao0J0MuZ0QeII1N-pBylHuWaNg
+    UploadFile:
+      type: string
+      description: |
+        A HTTP POST request which contains an encrypted file in its body
+      format: text/plain

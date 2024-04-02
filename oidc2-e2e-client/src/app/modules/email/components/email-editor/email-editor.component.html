@@ -1,0 +1,55 @@
+<!-- Email Form -->
+<form class="email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
+  <!-- From Selector -->
+  <mat-form-field>
+    <mat-label>From</mat-label>
+    <mat-select matNativeControl autofocus formControlName="from" required>
+      <mat-option *ngFor="let sender of senders" [value]="sender">
+        {{ sender.claims.name }} &#60;{{ sender.claims.email }}&#62;
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Key Selector -->
+  <!-- <mat-form-field>
+    <mat-label>PGP Key</mat-label>
+    <mat-select matNativeControl autofocus formControlName="key">
+      <mat-option *ngFor="let key of availableKeys" [value]="key">
+        {{ key.name }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field> -->
+
+  <!-- IdP Selector -->
+  <mat-form-field>
+    <mat-label>Identities</mat-label>
+    <mat-select matNativeControl autofocus formControlName="identities" multiple>
+      <mat-option *ngFor="let id of availableIdentities" [value]="id">
+        {{ id.claims.name }} ({{ id.identityProvider.name }})
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- To Input -->
+  <mat-form-field appearance="fill">
+    <mat-label>To</mat-label>
+    <input matInput formControlName="to" placeholder="receiver@mail.example.com" required type="email">
+  </mat-form-field>
+
+  <!-- Subject Input -->
+  <mat-form-field appearance="fill">
+    <mat-label>Subject</mat-label>
+    <input matInput formControlName="subject" placeholder="Subject" required type="text">
+  </mat-form-field>
+
+  <!-- Body Input -->
+  <mat-form-field class="full-height">
+    <mat-label>Body</mat-label>
+    <textarea matInput #autosize="cdkTextareaAutosize" cdkTextareaAutosize formControlName="body" required></textarea>
+  </mat-form-field>
+
+  <!-- Send Button -->
+  <button mat-fab class="send-button" color="primary" type="submit">
+    <mat-icon>send</mat-icon>
+  </button>
+</form>

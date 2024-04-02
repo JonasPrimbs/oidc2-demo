@@ -1,0 +1,9 @@
+<!-- Show icon if picture is not provided. -->
+<mat-icon *ngIf="!picture">{{ icon }}</mat-icon>
+
+<!-- Show picture if provided. -->
+<mat-icon *ngIf="picture"
+    mat-menu-avatar
+    class="profile"
+    [ngStyle]="{'background-image': 'url(' + picture + ')!'}">
+</mat-icon>

@@ -1,0 +1,22 @@
+<!-- Start Session Button -->
+<button mat-button class="start-session-button" color="primary" (click)="startSession()">Start Session</button>
+<!-- Upload File Button -->
+<button mat-button class="upload-file-button" color="primary" (click)="uploadFile()">Upload File</button>
+<!-- Download File Button-->
+<button mat-button class="download-file-button" color="primary" (click)="downloadFile()">Download File</button>
+<!-- Delete File Button-->
+<button mat-button class="delete-file-button" color="primary" (click)="deleteFile()">Delete File</button>
+<!-- Refresh Session Token Button-->
+<button mat-button class="refresh-session-button" id="refreshSession" color="primary" (click)="refreshSessionToken()">Refresh SessionToken</button>
+<!-- End Session Button-->
+<button mat-button class="end-session-button" id="endSession" color="primary" (click)="endSession()">End Session</button>
+<!-- Change Mode Button-->
+<button mat-button class="change-mode-button" id="changeMode" color="primary" (click)="changeMode()">Mode: {{this.mode}}</button>
+<!-- Performance Test Button-->
+<button mat-button class="performance-test-button" id="performanceTest" color="primary" (click)="performanceTestWrapper()">Performance Test</button>
+<!-- Debug output -->
+<p id="timer"></p>
+<a id ="showICT" href ='#'>Show client ICT</a>
+<a id="showSessionResponse" href="'#">Show Session Response</a>
+<p id="performanceTimer"></p>
+<!---->

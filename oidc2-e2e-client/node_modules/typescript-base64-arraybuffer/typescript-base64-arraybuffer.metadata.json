@@ -1,0 +1,1 @@
+{"__symbolic":"module","version":3,"metadata":{"encode":{"__symbolic":"function"},"decode":{"__symbolic":"function"}},"origins":{"encode":"./base64","decode":"./base64"},"importAs":"typescript-base64-arraybuffer"}

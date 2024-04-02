@@ -1,0 +1,62 @@
+<!-- Toolbar -->
+<mat-toolbar color="primary">
+  <!-- Menu Button -->
+  <button mat-icon-button (click)="drawer.toggle()">
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <!-- Title -->
+  <a class="title" routerLink="/">OIDC² Demo</a>
+
+  <!-- Spacer -->
+  <span class="spacer"></span>
+
+  <!-- Identity Menus -->
+  <identity-menu *ngFor="let identity of identities" [identity]="identity"></identity-menu>
+
+  <!-- Identity Provider Menu Button -->
+  <button mat-icon-button matTooltip="Login" [matMenuTriggerFor]="idpMenu">
+    <mat-icon>add</mat-icon>
+  </button>
+  <!-- Identity Provider Menu -->
+  <mat-menu #idpMenu="matMenu">
+    <!-- Identity Provider Buttons -->
+    <button *ngFor="let idp of identityProviders" mat-menu-item (click)="login(idp)" [matTooltip]="'Login to ' + idp.name">
+      <!-- Identity Provider Image -->
+      <profile-image [picture]="idp.icon" icon="account_balance"></profile-image>
+      <!-- Identity Provider Name -->
+      <span>{{ idp.name }}</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>
+
+<!-- Main Content -->
+<mat-drawer-container class="main">
+  <!-- Side Menu Bar -->
+  <mat-drawer #drawer mode="side">
+    <!-- Menu List -->
+    <mat-list>
+      <!-- Menu Header -->
+      <div mat-subheader>Main Menu</div>
+
+      <!-- E2E-Enc Menu Button -->
+      <a mat-menu-item routerLink="/e2e-enc">
+        <mat-icon matMenuItemIcon>e2e-enc</mat-icon>
+        <div matMenuItemTitle>End-To-End Encryption</div>
+      </a>
+      <!-- Email Menu Button -->
+      <a mat-menu-item routerLink="/emails">
+        <mat-icon matMenuItemIcon>mail</mat-icon>
+        <div matMenuItemTitle>Email</div>
+      </a>
+      <!-- Instant Messaging Menu Button -->
+      <a mat-menu-item routerLink="/messages">
+        <mat-icon matMenuItemIcon>chat</mat-icon>
+        <div matMenuItemTitle>Instant Messaging</div>
+      </a>
+    </mat-list>
+  </mat-drawer>
+
+  <!-- Current Page -->
+  <router-outlet></router-outlet>
+</mat-drawer-container>

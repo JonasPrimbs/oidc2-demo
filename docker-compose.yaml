@@ -1,8 +1,0 @@
-services:
-  oidc2-demo:
-    build:
-      context: ./             # Use this repository directory as context
-      dockerfile: Dockerfile  # Use 'Dockerfile' from context directory
-    restart: unless-stopped   # Restore last on/off state after restart
-    ports:                    # Run HTTP Server on Port 8080
-      - 4200:4200

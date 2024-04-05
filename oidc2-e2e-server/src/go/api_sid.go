@@ -179,12 +179,14 @@ func requestOpPublicKey(ictHeaderEnc string, ictBodyEnc string) (*rsa.PublicKey,
 	iss := ictBodyData["iss"].(string)
 	log.Printf("ICT iss: %s", iss)
 
-	/////////////////////////////////////////////
-	// This is a dirty workaround for the current testing playground I'm on
-	if iss == "http://op.localhost/realms/ict" {
-		iss = "http://localhost:8080/realms/ict"
-	}
-	/////////////////////////////////////////////
+	/*
+		/////////////////////////////////////////////
+		// This is a dirty workaround for the current testing playground I'm on
+		if iss == "http://op.localhost/realms/ict" {
+			iss = "http://localhost:8080/realms/ict"
+		}
+		/////////////////////////////////////////////
+	*/
 
 	// Get jwks_uri
 	res, err := http.Get(iss + "/.well-known/openid-configuration")

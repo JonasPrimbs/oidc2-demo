@@ -291,14 +291,14 @@ export class IdentityService {
     const popToken = await this.generatePoPToken(identity, keyPair);
 
     // Send ICT Token Request.
-    const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/ict';
+    const ictEndpoint = identity.identityProvider.baseUrl + '/protocol/openid-connect/userinfo/ict';
     const result = await firstValueFrom(
       this.http.post<ICTResponse>(
         ictEndpoint,
         popToken,
         {
           headers: {
-            'Content-Type': 'application/jwt',
+            'Content-Type': 'application/jwt; charset=UTF-8',
             'Authorization': `bearer ${identity.accessToken}`,
           },
         },

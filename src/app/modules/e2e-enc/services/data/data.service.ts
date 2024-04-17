@@ -2,15 +2,23 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { encodeBase64, decodeBase64 } from '../../../../byte-array-converter';
+import { decodeBase64, encodeBase64 } from '../../../../byte-array-converter';
 import { BASE_PATH } from '../../types/variables';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DataService {
+  /**
+   * The default headers to always set for the service.
+   */
   private readonly defaultHeaders = new HttpHeaders();
 
+  /**
+   * A service to interact with the data backend.
+   * @param basePath The base path of the End-to-End Encryption backend.
+   * @param httpClient The HTTP client instance.
+   */
   constructor(
     @Inject(BASE_PATH) private readonly basePath: string,
     private readonly httpClient: HttpClient,

@@ -3,6 +3,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
+import { environment } from '../../../environments/environment';
 import { AuthenticationModule } from '../authentication';
 import { E2EEncComponent } from './pages/e2e-enc.component';
 import { DataService } from './services/data/data.service';
@@ -24,7 +25,7 @@ import { BASE_PATH } from './types/variables';
     DataService,
     PingService,
     SidService,
-    { provide: BASE_PATH, useValue: 'http://localhost:4040' },
+    { provide: BASE_PATH, useValue: environment.e2eeBackend },
   ],
   exports: [
     E2EEncComponent,

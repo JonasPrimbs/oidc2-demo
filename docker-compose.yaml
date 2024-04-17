@@ -4,5 +4,8 @@ services:
       context: ./             # Use this repository directory as context
       dockerfile: Dockerfile  # Use 'Dockerfile' from context directory
     restart: unless-stopped   # Restore last on/off state after restart
-    ports:                    # Run HTTP Server on Port 8080
-      - 4200:4200
+    ports:                    # Define port mapping
+      - ${OIDC2_DEMO_EXTERNAL_PORT}:${OIDC2_DEMO_INTERNAL_PORT}
+    environment:
+      PORT: ${OIDC2_DEMO_INTERNAL_PORT} # Define exposed port inside the container
+      E2EE_BACKEND: ${E2EE_BACKEND_URL} # Define base URL of E2EE backend

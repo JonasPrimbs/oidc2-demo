@@ -43,6 +43,15 @@ export class E2EEncComponent {
   private end: number = 0;
 
   /**
+   * JWT.io URL to inspect the token.
+   */
+  public get tokenUrl(): string | undefined {
+    return this.ict === '' ? undefined : 'https://jwt.io/#debugger-io?token=' + this.ict;
+  }
+
+  public sessionResponseUrl: string | undefined;
+
+  /**
    * Constructs a new End-to-End encrypted File Upload Page.
    * @param dataService Data Service instance.
    * @param identityService Identity Service instance.
@@ -73,10 +82,6 @@ export class E2EEncComponent {
       keyPair,
       [ 'name', 'email', 'email_verified' ],
     );
-    document.getElementById('showICT')!.setAttribute(
-      'href',
-      'https://jwt.io/#debugger-io?token=' + this.ict
-    );
     // Create payload jwt for create session request
     const jwt = await this.sidService.genSessionJwt(
       keyPair,
@@ -91,7 +96,7 @@ export class E2EEncComponent {
 
   private async handleSessionResponse(response: string) {
     const serverDhParams = await this.sidService.verifyResponse(response);
-    document.getElementById('showSessionResponse')!.setAttribute('href', 'https://jwt.io/#debugger-io?token='+response);
+    this.sessionResponseUrl = 'https://jwt.io/#debugger-io?token=' + response;
     if (serverDhParams) {
       // Verification successful
       if (this.clientDHMac && this.clientDHEnc && serverDhParams[0] && serverDhParams[1]) {
@@ -126,7 +131,7 @@ export class E2EEncComponent {
   /** Encrypt a file array buffer and send it to the server */
   public async sendFile(file: ArrayBuffer, name: string): Promise<void> {
     // stop timer
-    clearTimeout(this.timer);
+    window.clearTimeout(this.timer);
     // Prepare cleartext string of format [Base64 encoded filename].[Base64 encoded file content]
     const enc = new TextEncoder();
     var nameBase64: string = encodeBase64(enc.encode(name));

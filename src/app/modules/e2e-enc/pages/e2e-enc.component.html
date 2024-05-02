@@ -19,7 +19,9 @@
 <p *ngIf="sessionTime !== undefined && sessionTime !== null">Session Token refresh in {{ sessionTime }}s</p>
 <p *ngIf="sessionTime === null">Session Ended</p>
 
-<!-- Debug output -->
-<a id ="showICT" href ='#'>Show client ICT</a>
-<a id="showSessionResponse" href="'#">Show Session Response</a>
-<p id="performanceTimer"></p>
+<!-- Inspect Tokens -->
+<a *ngIf="tokenUrl !== undefined" [href]="tokenUrl" target="_blank">Show client ICT</a>
+<a *ngIf="sessionResponseUrl" [href]="sessionResponseUrl" target="_blank">Show Session Response</a>
+
+<!-- Debug output
+<p id="performanceTimer"></p> -->

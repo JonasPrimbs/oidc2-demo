@@ -1,5 +1,18 @@
 <!-- PGP Key Import -->
 <!-- <app-pgp-import></app-pgp-import> -->
 
-<!-- Email Editor -->
-<app-email-editor></app-email-editor>
+
+<mat-tab-group>
+
+  <mat-tab label="View Email">
+    <!-- Show Email -->
+    <app-email-view></app-email-view>
+  </mat-tab>
+
+  <mat-tab label="Write Email">
+    <!-- Email Editor -->
+    <app-email-editor></app-email-editor>
+  </mat-tab>
+
+</mat-tab-group>
+

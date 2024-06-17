@@ -2,19 +2,26 @@
 
 
 <div *ngIf="email !== undefined">
-  <mat-card>
-    <mat-card-title>Subject: {{ email.subject }}</mat-card-title>
-    <mat-card-subtitle>From: {{email.sender.claims.email }}</mat-card-subtitle>
-    <mat-card-subtitle>To: {{ email.receiver }}</mat-card-subtitle>
-    <mat-card-content>
-      {{ mailBody }}
-    </mat-card-content>
+  <mat-card class="email-display-card">
+    
+    <mat-card-title>Subject: {{ email.payload.subject }}</mat-card-title>
+    <mat-card-subtitle>From: {{email.payload.from }}</mat-card-subtitle>
+    <mat-card-subtitle>To: {{ email.payload.to }}</mat-card-subtitle>
+    
+    <mat-card-content class="email-display-content">
 
-    <button (click)="loadMails()" mat-button>
-      Load mails
-    </button>
+      <div [innerHTML]="comment"></div>
+    </mat-card-content>
+    
   </mat-card>
 </div>
 <div *ngIf="email === undefined">
   No Email to show
 </div>
+
+<button (click)="next()" mat-button [disabled]="disabledNext">
+  next
+</button>
+<button (click)="previous()" mat-button>
+  previous
+</button>

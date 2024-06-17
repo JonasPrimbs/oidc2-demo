@@ -31,7 +31,7 @@ export class EmailService {
   ) { }
 
 
-  public async readEmail(): Promise<EmailMessage|undefined>{
+  public async readEmail(mailIndex: number): Promise<EmailMessage|undefined>{
 
     // find a identity
     var identity = this.identityService.identities.find(id => id.scopes?.indexOf('https://www.googleapis.com/auth/gmail.readonly'))
@@ -50,14 +50,12 @@ export class EmailService {
         },
       },
     ));
-    console.log(identity.accessToken)
-
-    
+    console.log(identity.accessToken)   
 
     // get the message by id
     // https://gmail.googleapis.com/gmail/v1/users/{userId}/messages/{id}
     var result = await firstValueFrom(this.http.get<Record<string, any>>(
-      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/${ids['messages'][0].id}`,
+      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/${ids['messages'][mailIndex].id}`,
       {
         headers: {
           'Authorization': `Bearer ${identity.accessToken}`,
@@ -65,39 +63,8 @@ export class EmailService {
         },
       },
     ));
-
-    return result as EmailMessage;
-
-    console.log(JSON.stringify(result));
-
-    console.log(result as EmailMessage);
-
-    var headers = (result['payload']['headers']) as any[];
-    var to = headers.find(o => o['name'] === 'To');
-    if(to !== undefined){
-      console.log(to['value']);
-    }
-    var from = headers.find(o => o['name'] === 'From');
-    if(from !== undefined){
-      console.log(from['value']);
-    }
-    var subject = headers.find(o => o['name'] === 'Subject');
-    if(subject !== undefined){
-      console.log(subject['value']);
-    }
-
-    var bodyContent = (result['payload']['parts'] as any[]).find(o => o['mimeType'] === "text/plain");
-    if(bodyContent !== undefined){
-      // console.log(bodyContent['body'].data);
-
-      let body: string = bodyContent['body'].data
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-
-        console.log(body);
-      
-      console.log(atob(body));
-    }
+    
+    return EmailMessage.copy(result as EmailMessage);
   }
 
   /**

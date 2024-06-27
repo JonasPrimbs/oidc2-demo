@@ -54,6 +54,14 @@ export class EmailMessagePart{
     return this.getHeaderValue("Subject");
   }
 
+  public get date(): Date | undefined{
+    let date = this.getHeaderValue("Date");
+    if(date !== undefined){
+      return new Date(date);
+    }
+    return undefined;
+  }
+
   private decodData(data: string): string | undefined{
     let preparedData = data
       .replace(/-/g, '+')

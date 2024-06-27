@@ -20,8 +20,6 @@ export class EmailViewComponent {
     return this.mailIndex <= 0;
   } 
 
-  public comment: string | undefined;
-
   constructor(
     private readonly emailService: EmailService,
     private readonly pgpService: PgpService
@@ -30,8 +28,6 @@ export class EmailViewComponent {
 
     public async loadMail() : Promise<void>{
       this.email = await this.emailService.readEmail(this.mailIndex);
-      this.comment = this.email?.payload.displayText;
-      console.log(this.comment);
     }
     
     public async next(): Promise<void>{

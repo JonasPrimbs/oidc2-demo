@@ -7,10 +7,11 @@
     <mat-card-title>Subject: {{ email.payload.subject }}</mat-card-title>
     <mat-card-subtitle>From: {{email.payload.from }}</mat-card-subtitle>
     <mat-card-subtitle>To: {{ email.payload.to }}</mat-card-subtitle>
+    <mat-card-subtitle>Date: {{ email.payload.date }}</mat-card-subtitle>
     
     <mat-card-content class="email-display-content">
 
-      <div [innerHTML]="comment"></div>
+      <div [innerHTML]="email.payload.displayText"></div>
     </mat-card-content>
     
   </mat-card>

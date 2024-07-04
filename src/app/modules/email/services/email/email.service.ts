@@ -1,11 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { decodeBase64 } from 'src/app/byte-array-converter';
 
 import { Identity, IdentityService } from '../../../authentication';
 import { Email } from '../../classes/email/email';
-import { EmailMessage } from '../../classes/email/message';
+import { decodeBase64Url, EmailMessage, parseEmailMessage } from '../../classes/email/message';
 
 @Injectable({
   providedIn: 'root',
@@ -50,12 +49,12 @@ export class EmailService {
         },
       },
     ));
-    console.log(identity.accessToken)   
+    console.log(identity.accessToken);
 
     // get the message by id
     // https://gmail.googleapis.com/gmail/v1/users/{userId}/messages/{id}
     var result = await firstValueFrom(this.http.get<Record<string, any>>(
-      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/${ids['messages'][mailIndex].id}`,
+      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/${ids['messages'][mailIndex].id}?format=raw`,
       {
         headers: {
           'Authorization': `Bearer ${identity.accessToken}`,
@@ -63,8 +62,12 @@ export class EmailService {
         },
       },
     ));
-    
-    return EmailMessage.copy(result as EmailMessage);
+
+    let rawEmailString = result['raw'];
+    let decodedEmailString = decodeBase64Url(rawEmailString);
+    let emailMessage = parseEmailMessage(decodedEmailString);
+    console.log(emailMessage);
+    return emailMessage;
   }
 
   /**

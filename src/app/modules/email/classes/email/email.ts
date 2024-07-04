@@ -122,7 +122,7 @@ export class Email {
       ]).reduce((prev, curr) => [...prev, ...curr]),
 
       // End:
-      `--${innerBoundary}--`,
+      `--${innerBoundary}--\r\n`,
     ];
     const body = innerArr.join('\r\n\r\n');
 
@@ -148,11 +148,8 @@ export class Email {
       // MIME Multipart header:
       this.headerToString(this.getMultipartSignedHeader(outerBoundary)),
 
-      // Signed message:
-      `--${outerBoundary}\r\n${body}`,
-
-      // Signature:
-      `--${outerBoundary}\r\n${this.headerToString(signatureFile.getMimeHeader())}`,
+      // Signed message + signature:
+      `--${outerBoundary}\r\n${body}\r\n--${outerBoundary}\r\n${this.headerToString(signatureFile.getMimeHeader())}`,
       signatureFile.getBody(),
 
       // End:

@@ -1,5 +1,8 @@
+import { decodeBase64 } from "src/app/byte-array-converter";
+
 const contentTypeHeader = "content-type";
 const contentTransferEncodingHeader = "content-transfer-encoding";
+const contentDispositionHeader = "content-disposition";
 const fromHeader = "from";
 const subjectHeader = "subject";
 const toHeader = "to";
@@ -13,6 +16,9 @@ const emptyLine = '\r\n\r\n';
 
 const contentTransferEncodingBase64 = "base64";
 const contentTransferEncodingQuotedPrintable = "quoted-printable";
+
+const contentDispositionFilename = "filename";
+const contentDispositionAttachment = "attachment";
 
 const mimeTextHtml = "text/html";
 const mimeTextPlain = "text/plain";
@@ -59,6 +65,36 @@ export class EmailMessagePart{
     return findHeader(this.headers, contentTransferEncodingHeader)?.value;
   }
 
+  public get contentDisposition(): string | undefined {
+    return findHeader(this.headers, contentDispositionHeader)?.value;
+  }
+
+  public get decodedRawBodyData(): Uint8Array{
+    let encoder = new TextEncoder();
+    if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingBase64){
+      return decodeBase64(this.body.data);
+    }
+    else if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingQuotedPrintable){
+
+      return encoder.encode(decodeQuotedPrintable(this.body.data));
+    }
+    else{
+      return encoder.encode(this.body.data);
+    }
+  }
+
+  public get decodedBodyData(): string{
+    if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingBase64){
+      return decodeBase64Url(this.body.data);
+    }
+    else if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingQuotedPrintable){
+      return decodeQuotedPrintable(this.body.data);
+    }
+    else{
+      return this.body.data;
+    }
+  }
+
   public get mimeType(): string | undefined {
     if(this.contentType === undefined){
       return undefined
@@ -73,15 +109,7 @@ export class EmailMessagePart{
 
   public get displayText(): string | undefined {
     if(this.mimeType === mimeTextHtml || this.mimeType === mimeTextPlain){
-      if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingBase64){
-        return decodeBase64Url(this.body.data);
-      }
-      else if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingQuotedPrintable){
-        return decodeQuotedPrintable(this.body.data);
-      }
-      else{
-        return this.body.data;
-      }
+      return this.decodedBodyData;
     }
     else if(this.parts.length > 0){
       let html = this.parts.find(p => p.mimeType === mimeTextHtml);
@@ -99,7 +127,51 @@ export class EmailMessagePart{
     }
     return undefined;
   }
+
+  public get attachments() : AttachmentFile[]{
+    if(this.contentDisposition?.toLowerCase().includes(contentDispositionAttachment)){
+      let contentDisposition = findHeader(this.headers, contentDispositionHeader);
+      if(contentDisposition !== undefined){
+        let fileName = findHeaderParameter(contentDisposition?.parameters, contentDispositionFilename)?.value;
+        if(fileName !== undefined && this.mimeType !== undefined){
+          let attachment = new AttachmentFile(fileName, this.mimeType, this.decodedRawBodyData);
+          return [attachment];
+        }
+      }
+    }
+
+    return this.parts.flatMap(p => p.attachments);
+  }
 }
+
+
+export class EmailMessageHeader{
+  constructor(
+    public readonly name: string,
+    public readonly value: string,
+    ){ }
+    
+    public get parameters(): EmailMessageHeaderParameter[]{
+      var regex = new RegExp(parameterRegex);
+      let params: EmailMessageHeaderParameter[] = []
+      let result = regex.exec(this.value);
+      while(result){
+        let param = new EmailMessageHeaderParameter(result[1], result[3] ?? result[4])
+        params = [...params, param];
+        result = regex.exec(this.value);
+      }    
+      return params;
+    }
+  }
+  
+export class EmailMessagePartBody{
+  constructor(
+    public readonly data: string,
+  ){}
+}
+    
+
+// helper classes
 
 export class EmailMessageHeaderParameter{
   constructor(
@@ -108,30 +180,25 @@ export class EmailMessageHeaderParameter{
   ){}
 }
 
-export class EmailMessageHeader{
+export class AttachmentFile{
   constructor(
-      public readonly name: string,
-      public readonly value: string,
-  ){ }
+    public readonly fileName: string,
+    public readonly contentType: string,
+    public readonly content: Uint8Array,
+  ){}
 
-  public get parameters(): EmailMessageHeaderParameter[]{
-    var regex = new RegExp(parameterRegex);
-    let params: EmailMessageHeaderParameter[] = []
-    let result = regex.exec(this.value);
-    while(result){
-      let param = new EmailMessageHeaderParameter(result[1], result[3] ?? result[4])
-      params = [...params, param];
-      result = regex.exec(this.value);
-    }    
-    return params;
+  private downloadUrl: string | undefined;
+
+  public getDownloadLink(): string{
+    
+    if(this.downloadUrl === undefined){
+      const blob = new Blob([this.content], { type: this.contentType });
+      this.downloadUrl = window.URL.createObjectURL(blob);
+    }
+    return this.downloadUrl;
   }
 }
 
-export class EmailMessagePartBody{
-  constructor(
-      public readonly data: string,
-  ){}
-}
 
 function findHeader(headers: EmailMessageHeader[], name: string) : EmailMessageHeader | undefined{
   return headers.find(h => h.name.toLowerCase() === name);

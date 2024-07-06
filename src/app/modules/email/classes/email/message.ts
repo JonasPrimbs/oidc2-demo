@@ -1,13 +1,21 @@
+const contentTypeHeader = "content-type";
+const contentTransferEncodingHeader = "content-transfer-encoding";
+const fromHeader = "from";
+const subjectHeader = "subject";
+const toHeader = "to";
+const dateHeader = "date";
 
-const ContentTypeHeader = "content-type";
-const FromHeader = "from";
-const SubjectHeader = "subject";
-const ToHeader = "to";
-const DateHeader = "date";
-
-const boundaryRegex = /boundary="([-\w]+)"/gi;
+const parameterRegex = /\s(\w+)=("([^"]*)"|([\w\d-]+))/gi;
+const mimeTypeRegex = /([\w\d\-\_]+)\/([\w\d\-\_]+)/gi;
 const headerRegex = /([\w-]+):\s(.*)/;
+
 const emptyLine = '\r\n\r\n';
+
+const contentTransferEncodingBase64 = "base64";
+const contentTransferEncodingQuotedPrintable = "quoted-printable";
+
+const mimeTextHtml = "text/html";
+const mimeTextPlain = "text/plain";
 
 export class EmailMessage{
   constructor(
@@ -24,54 +32,99 @@ export class EmailMessagePart{
   ){}
 
   public get subject(): string | undefined {
-    return findHeader(this.headers, SubjectHeader)?.value;
+    return findHeader(this.headers, subjectHeader)?.value;
   }
   
   public get from(): string | undefined {
-    return findHeader(this.headers, FromHeader)?.value;
+    return findHeader(this.headers, fromHeader)?.value;
   }
 
   public get to(): string | undefined {
-    return findHeader(this.headers, ToHeader)?.value;
+    return findHeader(this.headers, toHeader)?.value;
   }
 
   public get date(): Date | undefined {
-    let date = findHeader(this.headers, DateHeader)?.value;
+    let date = findHeader(this.headers, dateHeader)?.value;
     if(date !== undefined){
       return new Date(date);
     }
     return undefined;
   }
 
+  public get contentType(): string | undefined {
+    return findHeader(this.headers, contentTypeHeader)?.value;
+  }
+
+  public get contentTransferEncoding(): string | undefined {
+    return findHeader(this.headers, contentTransferEncodingHeader)?.value;
+  }
+
   public get mimeType(): string | undefined {
-    return findHeader(this.headers, ContentTypeHeader)?.value;
+    if(this.contentType === undefined){
+      return undefined
+    }
+    let mimeTypeRegExp = new RegExp(mimeTypeRegex);
+    let mimeType = mimeTypeRegExp.exec(this.contentType);
+    if(mimeType != null){
+      return mimeType[0];
+    }
+    return undefined;
   }
 
   public get displayText(): string | undefined {
-    // fix this displayText getter
-    if (this.body.data !== undefined){
-      return decodeBase64Url(this.body.data);
-    } 
-
-    let html = this.parts.find(p => p.mimeType?.includes("text/html"));
-    if(html !== undefined){
-      return decodeBase64Url(html.body.data);
+    if(this.mimeType === mimeTextHtml || this.mimeType === mimeTextPlain){
+      if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingBase64){
+        return decodeBase64Url(this.body.data);
+      }
+      else if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingQuotedPrintable){
+        return decodeQuotedPrintable(this.body.data);
+      }
+      else{
+        return this.body.data;
+      }
     }
-
-    let plaintext = this.parts.find(p => p.mimeType?.includes("text/plain"));
-    if(plaintext !== undefined){
-      return decodeBase64Url(plaintext.body.data);
+    else if(this.parts.length > 0){
+      let html = this.parts.find(p => p.mimeType === mimeTextHtml);
+      if(html !== undefined){
+        return html.displayText;
+      }
+      let plain = this.parts.find(p => p.mimeType === mimeTextPlain);
+      if(plain !== undefined){
+        return plain.displayText;
+      }
+      let content = this.parts.find(p => p.displayText !== undefined);
+      if(content !== undefined){
+        return content.displayText;
+      }
     }
-
     return undefined;
   }
+}
+
+export class EmailMessageHeaderParameter{
+  constructor(
+    public readonly attribute: string,
+    public readonly value: string,
+  ){}
 }
 
 export class EmailMessageHeader{
   constructor(
       public readonly name: string,
       public readonly value: string,
-  ){}
+  ){ }
+
+  public get parameters(): EmailMessageHeaderParameter[]{
+    var regex = new RegExp(parameterRegex);
+    let params: EmailMessageHeaderParameter[] = []
+    let result = regex.exec(this.value);
+    while(result){
+      let param = new EmailMessageHeaderParameter(result[1], result[3] ?? result[4])
+      params = [...params, param];
+      result = regex.exec(this.value);
+    }    
+    return params;
+  }
 }
 
 export class EmailMessagePartBody{
@@ -82,6 +135,10 @@ export class EmailMessagePartBody{
 
 function findHeader(headers: EmailMessageHeader[], name: string) : EmailMessageHeader | undefined{
   return headers.find(h => h.name.toLowerCase() === name);
+}
+
+function findHeaderParameter(parameters: EmailMessageHeaderParameter[], attribute: string) : EmailMessageHeaderParameter | undefined{
+  return parameters.find(p => p.attribute.toLowerCase() === attribute);
 }
 
 /**
@@ -109,14 +166,12 @@ function parseEmailMessagePart(rawEmailMessagePart: string) : EmailMessagePart{
 
   // find the boundary delimiter
   let boundaryDelimiter: string | undefined = undefined;
-  let contentType = findHeader(headers, ContentTypeHeader);
+  let contentType = findHeader(headers, contentTypeHeader);
   if(contentType !== undefined){
-      let boundary = new RegExp(boundaryRegex);
-      let result = boundary.exec(contentType.value);
-      if(result !== null){
-          boundaryDelimiter = `--${result[1]}`;
-      }
+      let boundary = findHeaderParameter(contentType.parameters, "boundary")?.value
+      boundaryDelimiter = boundary !== undefined ? `--${boundary}` : undefined;
   }
+
   
   let body = new EmailMessagePartBody(boundaryDelimiter === undefined ? bodyContent : '');
   let parts = boundaryDelimiter !== undefined ? parseEmailMessageParts(bodyContent, boundaryDelimiter) : [];
@@ -183,6 +238,13 @@ function parseEmailMessageHeaders(rawEmailMessageHeadersContent: string) : Email
   }
   return headers;
 }
+
+function decodeQuotedPrintable(input: string) {
+  return input
+      .replace(/=[\r\n]+/g, '')  // Remove soft line breaks
+      .replace(/=([0-9A-F]{2})/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));  // Decode hex values
+}
+
 
 export function decodeBase64Url(data: string): string {
   let preparedData = data

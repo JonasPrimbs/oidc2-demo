@@ -202,7 +202,7 @@ export class EmailEditorComponent implements OnInit {
 
     // Encode all E2E PoP Tokens to one file body.
     const prefix = '-----BEGIN E2E POP TOKEN-----';
-    const postfix = '-----END E2E POP TOKEn-----';
+    const postfix = '-----END E2E POP TOKEN-----';
     const body = pops.map(
       pop => [
         prefix,
@@ -261,7 +261,7 @@ export class EmailEditorComponent implements OnInit {
       // Add E2E PoP Token attachment file to email.
       email.parts.push(pops);
     }
-
+    
     // Send the email instance.
     await this.emailService.sendEmail(email);
   }

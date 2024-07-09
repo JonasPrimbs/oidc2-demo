@@ -1,5 +1,7 @@
 import { decodeBase64 } from "src/app/byte-array-converter";
 
+
+// headers
 const contentTypeHeader = "content-type";
 const contentTransferEncodingHeader = "content-transfer-encoding";
 const contentDispositionHeader = "content-disposition";
@@ -8,23 +10,27 @@ const subjectHeader = "subject";
 const toHeader = "to";
 const dateHeader = "date";
 
+// regular expressions
 const parameterRegex = /\s(\w+)=("([^"]*)"|([\w\d-]+))/gi;
 const mimeTypeRegex = /([\w\d\-\_]+)\/([\w\d\-\_]+)/gi;
 const headerRegex = /([\w-]+):\s(.*)/;
 
-const emptyLine = '\r\n\r\n';
-
+// content transfer encoding
 const contentTransferEncodingBase64 = "base64";
 const contentTransferEncodingQuotedPrintable = "quoted-printable";
 
+// content disposition
 const contentDispositionFilename = "filename";
 const contentDispositionAttachment = "attachment";
 
+// content types
 const contentTypeTextHtmp = "text/html";
 const contentTypeTextPlain = "text/plain";
 const contentTypePgpKeys = "application/pgp-keys";
 const contentTypePgpSignature = "application/pgp-signature";
 const contentTypeSigned = "multipart/signed";
+
+const emptyLine = '\r\n\r\n';
 
 export class EmailMessage{
   constructor(
@@ -87,15 +93,8 @@ export class EmailMessagePart{
   }
 
   public get decodedBodyData(): string{
-    if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingBase64){
-      return decodeBase64Url(this.body.data);
-    }
-    else if(this.contentTransferEncoding?.toLowerCase() === contentTransferEncodingQuotedPrintable){
-      return decodeQuotedPrintable(this.body.data);
-    }
-    else{
-      return this.body.data;
-    }
+    let decoder = new TextDecoder();
+    return decoder.decode(this.decodedRawBodyData);
   }
 
   public get mimeType(): string | undefined {
@@ -143,6 +142,10 @@ export class EmailMessagePart{
       }
     }
     return this.parts.flatMap(p => p.attachments);
+  }
+
+  public signedContent(): EmailMessagePart | undefined{
+    return this.findChild(part => part.contentType?.includes(contentTypeSigned) ?? false)?.parts[0];
   }
 
   public findChild(predicate: (part: EmailMessagePart) => boolean): EmailMessagePart | undefined{
@@ -221,11 +224,22 @@ export class AttachmentFile{
   }
 }
 
-
+/**
+ * find a header by name
+ * @param headers all headers 
+ * @param name name of the header
+ * @returns 
+ */
 function findHeader(headers: EmailMessageHeader[], name: string) : EmailMessageHeader | undefined{
   return headers.find(h => h.name.toLowerCase() === name);
 }
 
+/**
+ * Find a header parameter attribute
+ * @param parameters header parameters
+ * @param attribute the attribute to search
+ * @returns 
+ */
 function findHeaderParameter(parameters: EmailMessageHeaderParameter[], attribute: string) : EmailMessageHeaderParameter | undefined{
   return parameters.find(p => p.attribute.toLowerCase() === attribute);
 }
@@ -328,18 +342,13 @@ function parseEmailMessageHeaders(rawEmailMessageHeadersContent: string) : Email
   return headers;
 }
 
-function decodeQuotedPrintable(input: string) {
+/**
+ * decode quoted printable string
+ * @param input 
+ * @returns 
+ */
+function decodeQuotedPrintable(input: string) : string{
   return input
       .replace(/=[\r\n]+/g, '')  // Remove soft line breaks
       .replace(/=([0-9A-F]{2})/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));  // Decode hex values
-}
-
-
-export function decodeBase64Url(data: string): string {
-  let preparedData = data
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-  let base64decoded = atob(preparedData);
-
-  return base64decoded;
 }

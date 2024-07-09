@@ -20,8 +20,11 @@ const contentTransferEncodingQuotedPrintable = "quoted-printable";
 const contentDispositionFilename = "filename";
 const contentDispositionAttachment = "attachment";
 
-const mimeTextHtml = "text/html";
-const mimeTextPlain = "text/plain";
+const contentTypeTextHtmp = "text/html";
+const contentTypeTextPlain = "text/plain";
+const contentTypePgpKeys = "application/pgp-keys";
+const contentTypePgpSignature = "application/pgp-signature";
+const contentTypeSigned = "multipart/signed";
 
 export class EmailMessage{
   constructor(
@@ -108,15 +111,15 @@ export class EmailMessagePart{
   }
 
   public get displayText(): string | undefined {
-    if(this.mimeType === mimeTextHtml || this.mimeType === mimeTextPlain){
+    if(this.mimeType === contentTypeTextHtmp || this.mimeType === contentTypeTextPlain){
       return this.decodedBodyData;
     }
     else if(this.parts.length > 0){
-      let html = this.parts.find(p => p.mimeType === mimeTextHtml);
+      let html = this.parts.find(p => p.mimeType === contentTypeTextHtmp);
       if(html !== undefined){
         return html.displayText;
       }
-      let plain = this.parts.find(p => p.mimeType === mimeTextPlain);
+      let plain = this.parts.find(p => p.mimeType === contentTypeTextPlain);
       if(plain !== undefined){
         return plain.displayText;
       }
@@ -139,8 +142,14 @@ export class EmailMessagePart{
         }
       }
     }
-
     return this.parts.flatMap(p => p.attachments);
+  }
+
+  public findChild(predicate: (part: EmailMessagePart) => boolean): EmailMessagePart | undefined{
+    if(predicate(this)){
+      return this;
+    }
+    return this.parts.find(p => p.findChild(predicate));
   }
 }
 
@@ -187,6 +196,14 @@ export class AttachmentFile{
     public readonly content: Uint8Array,
   ){}
 
+  public isPgpKey() : boolean{
+    return this.contentType === contentTypePgpKeys;
+  }
+
+  public isPgpSignature() : boolean{
+    return this.contentType === contentTypePgpSignature;
+  }
+
   private downloadUrl: string | undefined;
 
   public getDownloadLink(): string{
@@ -196,6 +213,11 @@ export class AttachmentFile{
       this.downloadUrl = window.URL.createObjectURL(blob);
     }
     return this.downloadUrl;
+  }
+
+  public get contentAsString() : string{
+    let decoder = new TextDecoder();
+    return decoder.decode(this.content);
   }
 }
 
@@ -253,7 +275,7 @@ function parseEmailMessagePart(rawEmailMessagePart: string) : EmailMessagePart{
 */
 function parseEmailMessageParts(rawEmailMessagePartsContent: string, boundaryDelimiter: string) : EmailMessagePart[]{
   const boundaryDelimiterStart = `${boundaryDelimiter}\r\n`;
-  const boundaryDelimiterEnd = `${boundaryDelimiter}--\r\n`;
+  const boundaryDelimiterEnd = `${boundaryDelimiter}--`;
 
   let allParts = rawEmailMessagePartsContent.split(new RegExp(`${boundaryDelimiterStart}|${boundaryDelimiterEnd}`));
   // remove preamble and epilogue (RFC 2046 section 5.1.1)

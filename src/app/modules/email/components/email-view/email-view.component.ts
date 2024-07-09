@@ -28,6 +28,13 @@ export class EmailViewComponent {
 
     public async loadMail() : Promise<void>{
       this.email = await this.emailService.readEmail(this.mailIndex);
+      let pgpKeyAttachment = this.email?.payload.attachments.find(a => a.isPgpKey());
+      let pgpSignatureAttachment = this.email?.payload.attachments.find(a => a.isPgpSignature());
+      let signedContent = this.email?.payload.signedContent();
+      if(pgpKeyAttachment?.contentAsString !== undefined && pgpSignatureAttachment?.contentAsString !== undefined && signedContent?.raw !== undefined){
+        let res = await this.pgpService.verify(pgpKeyAttachment.contentAsString, pgpSignatureAttachment.contentAsString, signedContent.raw);
+        console.log(res);
+      }
     }
     
     public async next(): Promise<void>{

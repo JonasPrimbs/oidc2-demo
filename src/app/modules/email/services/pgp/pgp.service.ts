@@ -147,17 +147,11 @@ export class PgpService {
   ) { }
 
 
-  public async verify(armoredPublicKey: string, signature: string, message: string) : Promise<boolean>{
+  public async verify(armoredPublicKey: string, signature: string, message: string) : Promise<openpgp.VerifyMessageResult<string>>{
     let publicKey = await openpgp.readKey({armoredKey: armoredPublicKey});
     let sign = await openpgp.readSignature({armoredSignature: signature});
     let msg = await openpgp.createMessage({text: message});
 
-    try{
-      const result = await openpgp.verify({message: msg, expectSigned: true, verificationKeys: publicKey, signature: sign});
-      return true;
-    }
-    catch(ex){
-      return false;
-    }
+    return openpgp.verify({message: msg, verificationKeys: publicKey, signature: sign});
   }
 }

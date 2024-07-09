@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { Signature } from 'jose';
+import { PacketList, PublicKey, SignaturePacket, VerificationResult } from 'openpgp';
 import { Identity, IdentityProvider } from 'src/app/modules/authentication';
 import { EmailContent } from '../../classes/email-content/email-content';
 import { Email } from '../../classes/email/email';
@@ -14,7 +16,12 @@ import { PgpService } from '../../services/pgp/pgp.service';
 export class EmailViewComponent {
 
   private mailIndex: number = 0;
+
   public email: EmailMessage | undefined;
+  
+  public publicKey: PublicKey | undefined;
+
+  public signatureResults : SignatureVerificationResult[] = [];
 
   public get disabledNext (){
     return this.mailIndex <= 0;
@@ -27,13 +34,26 @@ export class EmailViewComponent {
     } 
 
     public async loadMail() : Promise<void>{
+      this.publicKey = undefined;
+      this.signatureResults = [];
+
       this.email = await this.emailService.readEmail(this.mailIndex);
       let pgpKeyAttachment = this.email?.payload.attachments.find(a => a.isPgpKey());
       let pgpSignatureAttachment = this.email?.payload.attachments.find(a => a.isPgpSignature());
       let signedContent = this.email?.payload.signedContent();
+
       if(pgpKeyAttachment?.contentAsString !== undefined && pgpSignatureAttachment?.contentAsString !== undefined && signedContent?.raw !== undefined){
-        let res = await this.pgpService.verify(pgpKeyAttachment.contentAsString, pgpSignatureAttachment.contentAsString, signedContent.raw);
-        console.log(res);
+        this.publicKey = await this.pgpService.importPublicKey(pgpKeyAttachment.contentAsString);
+        let verificationResult = await this.pgpService.verify(pgpKeyAttachment.contentAsString, pgpSignatureAttachment.contentAsString, signedContent.raw);
+        for(let result of verificationResult.signatures){
+          try{
+            let signature = await result.signature;
+            this.signatureResults.push(new SignatureVerificationResult(result.keyID.toHex(), await result.verified, signature.packets[0].created ?? undefined));          
+          }
+          catch(ex){
+            this.signatureResults.push(new SignatureVerificationResult(result.keyID.toHex(), false, undefined));   
+          }
+        }
       }
     }
     
@@ -47,5 +67,13 @@ export class EmailViewComponent {
       await this.loadMail();
     }   
     
+  }
+
+  class SignatureVerificationResult{
+    constructor(
+      public readonly keyId: string,
+      public readonly verified: boolean,
+      public readonly signedAt: Date | undefined,
+    ) {}
   }
 

@@ -1,10 +1,29 @@
 
-
+<button (click)="next()" mat-button [disabled]="disabledNext">
+  next
+</button>
+<button (click)="previous()" mat-button>
+  previous
+</button>
 
 <div *ngIf="email !== undefined">
   <mat-card class="email-display-card">
-    
     <mat-card-title>Subject: {{ email.payload.subject }}</mat-card-title>
+
+    <div *ngFor="let signature of signatureResults">
+        Signature ({{ signature.keyId }})<br/>
+        Signature: {{ signature.verified ? 'OK' : 'Not OK' }} <br/>
+        Signature Date: {{ signature.signedAt }} <br/>
+    </div>
+
+    <div *ngIf="publicKey !== undefined">
+      PGP-Key: <br/>
+      Fingerprint: {{ publicKey.getFingerprint() }} <br/>
+      KeyID: {{ publicKey.getKeyID().toHex() }} <br/>
+      User ID: {{ publicKey.getUserIDs() }} <br/>
+      CreationTime: {{ publicKey.getCreationTime() }} <br>
+    </div>
+    
     <mat-card-subtitle>From: {{email.payload.from }}</mat-card-subtitle>
     <mat-card-subtitle>To: {{ email.payload.to }}</mat-card-subtitle>
     <mat-card-subtitle>Date: {{ email.payload.date }}</mat-card-subtitle>
@@ -29,9 +48,4 @@
   No Email to show
 </div>
 
-<button (click)="next()" mat-button [disabled]="disabledNext">
-  next
-</button>
-<button (click)="previous()" mat-button>
-  previous
-</button>
+

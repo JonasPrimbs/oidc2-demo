@@ -33,8 +33,8 @@ export class EmailService {
 
   public async readEmail(mailIndex: number): Promise<EmailMessage|undefined>{
 
-    // find a identity
-    var identity = this.identityService.identities.find(id => id.scopes?.indexOf('https://www.googleapis.com/auth/gmail.readonly'))
+    // find the google identity to send
+    var identity = this.identityService.identities.find(id => id.identityProvider.name === "Google")
     if(identity == undefined){
       return undefined;
     }
@@ -50,6 +50,7 @@ export class EmailService {
         },
       },
     ));
+    //todo: delete gmail API accessToken logging
     console.log(identity.accessToken);
 
     // get the message by id
@@ -79,9 +80,8 @@ export class EmailService {
    * @param email Email to send.
    */
   public async sendEmail(email: Email): Promise<void> {
-    console.log(email.sender);
     await firstValueFrom(this.http.post<Record<string, any>>(
-      `https://www.googleapis.com/gmail/v1/users/${email.sender.claims.email}/messages/send?uploadType=multipart`,
+      `https://www.googleapis.com/gmail/v1/users/${email.sender.claims.email}/messages/send?uploadType=multipart&format=raw`,
       { raw: await email.toRawString() },
       {
         headers: {

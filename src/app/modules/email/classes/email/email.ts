@@ -127,18 +127,17 @@ export class Email {
     const body = innerArr.join('\r\n\r\n');
 
     // Create signature.
-    const pgpMessage = await openpgp.createCleartextMessage({ text: body });
-    const signedMessage = await openpgp.sign({
+    const pgpMessage = await openpgp.createMessage({ text: body });
+    const signatrueString = await openpgp.sign({
       message: pgpMessage,
       signingKeys: privateKey,
+      detached: true,
       format: 'armored',
     });
-    const signatureStartIndex = signedMessage.indexOf('-----BEGIN PGP SIGNATURE-----');
-    const signatureEndIndex = signedMessage.indexOf('-----END PGP SIGNATURE-----', signatureStartIndex);
-    const signatureString = signedMessage.substring(signatureStartIndex, signatureEndIndex + '-----END PGP SIGNATURE-----'.length);
+        
     const signatureFile = new AttachmentFile(
       'OpenPGP_signature.asc',
-      signatureString,
+      signatrueString,
       'application/pgp-signature',
       'OpenPGP digital signature',
     );
@@ -193,6 +192,6 @@ export class Email {
     return window.btoa(mailString)
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
-      .replace(/\=/, '');    
+      .replace(/\=/g, '');    
   }
 }

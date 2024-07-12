@@ -36,9 +36,9 @@
     <mat-list>
       <div mat-subheader>Attachments</div>
       <div *ngFor="let attachment of email.payload.attachments">
-        <a [href]="attachment.getDownloadLink()"
-          [download]="attachment.fileName">
-          {{attachment.fileName}}
+        <a [href]="attachment.getDownloadUrl()"
+          [download]="attachment.name">
+          {{attachment.name}}
         </a>
       </div>
     </mat-list>

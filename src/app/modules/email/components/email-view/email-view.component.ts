@@ -4,7 +4,7 @@ import { PacketList, PublicKey, SignaturePacket, VerificationResult } from 'open
 import { Identity, IdentityProvider } from 'src/app/modules/authentication';
 import { EmailContent } from '../../classes/email-content/email-content';
 import { Email } from '../../classes/email/email';
-import { EmailMessage, EmailMessagePart } from '../../classes/email/message';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { EmailService } from '../../services/email/email.service';
 import { PgpService } from '../../services/pgp/pgp.service';
 
@@ -17,7 +17,7 @@ export class EmailViewComponent {
 
   private mailIndex: number = 0;
 
-  public email: EmailMessage | undefined;
+  public email: MimeMessage | undefined;
   
   public publicKey: PublicKey | undefined;
 
@@ -42,9 +42,9 @@ export class EmailViewComponent {
       let pgpSignatureAttachment = this.email?.payload.attachments.find(a => a.isPgpSignature());
       let signedContent = this.email?.payload.signedContent();
 
-      if(pgpKeyAttachment?.contentAsString !== undefined && pgpSignatureAttachment?.contentAsString !== undefined && signedContent?.raw !== undefined){
-        this.publicKey = await this.pgpService.importPublicKey(pgpKeyAttachment.contentAsString);
-        let verificationResult = await this.pgpService.verify(pgpKeyAttachment.contentAsString, pgpSignatureAttachment.contentAsString, signedContent.raw);
+      if(pgpKeyAttachment?.body !== undefined && pgpSignatureAttachment?.body !== undefined && signedContent?.raw !== undefined){
+        this.publicKey = await this.pgpService.importPublicKey(pgpKeyAttachment.decodedText());
+        let verificationResult = await this.pgpService.verify(pgpKeyAttachment.decodedText(), pgpSignatureAttachment.decodedText(), signedContent.raw);
         for(let result of verificationResult.signatures){
           try{
             let signature = await result.signature;

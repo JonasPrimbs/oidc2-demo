@@ -5,7 +5,7 @@ import { decodeBase64url } from 'src/app/byte-array-converter/base64url';
 
 import { Identity, IdentityService } from '../../../authentication';
 import { Email } from '../../classes/email/email';
-import { EmailMessage, parseEmailMessage } from '../../classes/email/message';
+import { MimeMessage, parseMimeMessage } from '../../classes/mime-message/mime-message';
 
 @Injectable({
   providedIn: 'root',
@@ -31,7 +31,7 @@ export class EmailService {
   ) { }
 
 
-  public async readEmail(mailIndex: number): Promise<EmailMessage|undefined>{
+  public async readEmail(mailIndex: number): Promise<MimeMessage|undefined>{
 
     // find the google identity to send
     var identity = this.identityService.identities.find(id => id.identityProvider.name === "Google")
@@ -71,7 +71,7 @@ export class EmailService {
     let decoder = new TextDecoder();
     let mimeMessage = decoder.decode(decodedEmail);
     
-    let emailMessage = parseEmailMessage(mimeMessage);
+    let emailMessage = parseMimeMessage(mimeMessage);
     return emailMessage;
   }
 

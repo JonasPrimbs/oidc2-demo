@@ -25,6 +25,9 @@ const contentTypeTextHtml = "text/html";
 const contentTypeTextPlain = "text/plain";
 const contentTypeSigned = "multipart/signed";
 const contentTypeEncrypted = "multipart/encrypted";
+const contentTypeApplicationOctetStream = "application/octet-stream";
+
+const contentTypeProtocolPgpEncrypted = "application/pgp-encrypted";
 
 // content transfer encoding
 const contentTransferEncodingBase64 = "base64";
@@ -142,7 +145,15 @@ export class MimeMessagePart{
   }
 
   public encryptedContent(): MimeMessagePart | undefined{
-    return this.findChild(part => part.contentType?.includes(contentTypeEncrypted) ?? false)?.parts[1];
+    let encryptedContent = this.findChild(part => part.contentType?.includes(contentTypeEncrypted) ?? false);
+    if(encryptedContent && encryptedContent.parts[1].contentType?.includes(contentTypeApplicationOctetStream)){
+      let contentType = findMimeHeader(encryptedContent.headers, contentTypeHeader);
+      let protocol = findMimeHeaderParameter(contentType?.parameters ?? [], "protocol");
+      if(protocol?.value === contentTypeProtocolPgpEncrypted){
+        return encryptedContent.parts[1]; // use the second part for the encrypted data (RFC3156 Section 4)
+      }
+    }
+    return undefined; 
   }
 
   public findChild(predicate: (part: MimeMessagePart) => boolean): MimeMessagePart | undefined{

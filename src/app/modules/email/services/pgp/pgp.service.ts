@@ -201,7 +201,7 @@ export class PgpService {
       let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys});
       
       // the encypted content for thunderbird has only \n for linebreaks instead of \r\n. 
-      let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMessageResult.data.replace(/\n/g, '\r\n'));
+      let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMessageResult.data.replace(/(?<!\r)\n/g, '\r\n'));
       let decryptedMimeMessage = new MimeMessage(decryptedMimeMessagePart);
 
       //verify

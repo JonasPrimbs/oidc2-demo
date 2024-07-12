@@ -48,10 +48,10 @@ export class EmailViewComponent {
         for(let result of verificationResult.signatures){
           try{
             let signature = await result.signature;
-            this.signatureResults.push(new SignatureVerificationResult(result.keyID.toHex(), await result.verified, signature.packets[0].created ?? undefined));          
+            this.signatureResults.push(new SignatureVerificationResult('0x' + result.keyID.toHex().toUpperCase(), await result.verified, signature.packets[0].created ?? undefined));          
           }
           catch(ex){
-            this.signatureResults.push(new SignatureVerificationResult(result.keyID.toHex(), false, undefined));   
+            this.signatureResults.push(new SignatureVerificationResult('0x' + result.keyID.toHex().toUpperCase(), false, undefined));   
           }
         }
       }

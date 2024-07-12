@@ -11,7 +11,7 @@
     <mat-card-title>Subject: {{ email.payload.subject }}</mat-card-title>
 
     <div *ngFor="let signature of signatureResults">
-        Signature ({{ signature.keyId }})<br/>
+        Signature (Key-ID: {{ signature.keyId }})<br/>
         Signature: {{ signature.verified ? 'OK' : 'Not OK' }} <br/>
         Signature Date: {{ signature.signedAt }} <br/>
     </div>

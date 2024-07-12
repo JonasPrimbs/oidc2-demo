@@ -12,8 +12,11 @@
 
     <div *ngFor="let signature of signatureResults">
         Signature (Key-ID: {{ signature.keyId }})<br/>
-        Signature: {{ signature.verified ? 'OK' : 'Not OK' }} <br/>
+        Signature: {{ signature.verified ? 'OK' : 'Not OK' }} {{ signature.errorMessage !== undefined ? '(' + signature.errorMessage + ')' : ''}}) <br/>
         Signature Date: {{ signature.signedAt }} <br/>
+    </div>
+    <div *ngIf="encrypted">
+      Encrypted!
     </div>
 
     <div *ngIf="publicKey !== undefined">

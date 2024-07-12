@@ -4,9 +4,10 @@ import { PacketList, PublicKey, SignaturePacket, VerificationResult } from 'open
 import { Identity, IdentityProvider } from 'src/app/modules/authentication';
 import { EmailContent } from '../../classes/email-content/email-content';
 import { Email } from '../../classes/email/email';
-import { MimeMessage } from '../../classes/mime-message/mime-message';
+import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
+import { MimeMessage, parseMimeMessage } from '../../classes/mime-message/mime-message';
 import { EmailService } from '../../services/email/email.service';
-import { PgpService } from '../../services/pgp/pgp.service';
+import { PgpService, SignatureVerificationResult } from '../../services/pgp/pgp.service';
 
 @Component({
   selector: 'app-email-view',
@@ -23,6 +24,8 @@ export class EmailViewComponent {
 
   public signatureResults : SignatureVerificationResult[] = [];
 
+  public encrypted : boolean = false;;
+
   public get disabledNext (){
     return this.mailIndex <= 0;
   } 
@@ -36,24 +39,20 @@ export class EmailViewComponent {
     public async loadMail() : Promise<void>{
       this.publicKey = undefined;
       this.signatureResults = [];
-
+      this.encrypted = false;
       this.email = await this.emailService.readEmail(this.mailIndex);
-      let pgpKeyAttachment = this.email?.payload.attachments.find(a => a.isPgpKey());
-      let pgpSignatureAttachment = this.email?.payload.attachments.find(a => a.isPgpSignature());
-      let signedContent = this.email?.payload.signedContent();
-
-      if(pgpKeyAttachment?.body !== undefined && pgpSignatureAttachment?.body !== undefined && signedContent?.raw !== undefined){
-        this.publicKey = await this.pgpService.importPublicKey(pgpKeyAttachment.decodedText());
-        let verificationResult = await this.pgpService.verify(pgpKeyAttachment.decodedText(), pgpSignatureAttachment.decodedText(), signedContent.raw);
-        for(let result of verificationResult.signatures){
-          try{
-            let signature = await result.signature;
-            this.signatureResults.push(new SignatureVerificationResult('0x' + result.keyID.toHex().toUpperCase(), await result.verified, signature.packets[0].created ?? undefined));          
-          }
-          catch(ex){
-            this.signatureResults.push(new SignatureVerificationResult('0x' + result.keyID.toHex().toUpperCase(), false, undefined));   
-          }
+      
+      
+      if(this.email?.payload.encryptedContent() !== undefined){
+        let res = await this.pgpService.decryptAndVerifyMimeMessage(this.email);
+        if(res){
+          this.email = res.mimeMessage;
+          this.signatureResults = res.signatureVerificationResults;
+          this.encrypted = true;
         }
+      }      
+      if(this.email?.payload.signedContent() !== undefined){
+        this.signatureResults = await this.pgpService.verifyMimeMessage(this.email);
       }
     }
     
@@ -69,11 +68,5 @@ export class EmailViewComponent {
     
   }
 
-  class SignatureVerificationResult{
-    constructor(
-      public readonly keyId: string,
-      public readonly verified: boolean,
-      public readonly signedAt: Date | undefined,
-    ) {}
-  }
+  
 

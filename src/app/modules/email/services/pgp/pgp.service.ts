@@ -1,6 +1,8 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import * as openpgp from 'openpgp';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
+import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
 
 @Injectable({
   providedIn: 'root'
@@ -147,11 +149,86 @@ export class PgpService {
   ) { }
 
 
-  public async verify(armoredPublicKey: string, signature: string, message: string) : Promise<openpgp.VerifyMessageResult<string>>{
-    let publicKey = await openpgp.readKey({armoredKey: armoredPublicKey});
-    let sign = await openpgp.readSignature({armoredSignature: signature});
-    let msg = await openpgp.createMessage({text: message});
+  /**
+   * Verifies a MIME-Message
+   * @param mimeMessage 
+   * @returns 
+   */
+  public async verifyMimeMessage(mimeMessage: MimeMessage) : Promise<SignatureVerificationResult[]>{
+    let armoredKey = mimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+    let armoredSignature = mimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
+    let signedContent = mimeMessage.payload.signedContent()?.raw;
 
-    return openpgp.verify({message: msg, verificationKeys: publicKey, signature: sign});
+    if(armoredKey && armoredSignature && signedContent){
+      let publicKey = await openpgp.readKey({armoredKey});
+      let signature = await openpgp.readSignature({armoredSignature});
+      let message = await openpgp.createMessage({text: signedContent});
+      let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
+      return this.verifySignatures(verifyMessageResult.signatures);      
+    }
+
+    return [new SignatureVerificationResult(false, undefined, 'No Signature available')];
   }
+
+  private async verifySignatures(signatures: openpgp.VerificationResult[]){
+    let signatureVerificationResults: SignatureVerificationResult[] = [];
+    for(let result of signatures){
+      let keyId = '0x' + result.keyID.toHex().toUpperCase();
+      try{
+        signatureVerificationResults.push(new SignatureVerificationResult(await result.verified, keyId, undefined, (await result.signature).packets[0].created ?? undefined));          
+      }
+      catch(ex){
+        signatureVerificationResults.push(new SignatureVerificationResult(false, keyId, "Invalid signature"));   
+      }
+    }
+    return signatureVerificationResults;
+  }
+
+  /**
+   * decrypt and verifies a mime message
+   * @param mimeMessage 
+   * @returns 
+   */
+  public async decryptAndVerifyMimeMessage(mimeMessage: MimeMessage) : Promise<DecryptedAndVerificationResult | undefined>{
+    let armoredMessage = mimeMessage.payload.encryptedContent()?.body;
+
+    if(armoredMessage){
+      let verifiedSignatures: SignatureVerificationResult[] = [];
+      
+      // decrypt
+      let decryptedKeys = await Promise.all(await this.privateKeys.map(k => openpgp.decryptKey({privateKey: k.key, passphrase: k.passphrase})));
+      let message = await openpgp.readMessage({armoredMessage});
+      let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys});
+      
+      let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMessageResult.data.replace(/\n/g, '\r\n'));
+      let decryptedMimeMessage = new MimeMessage(decryptedMimeMessagePart);
+
+      //verify
+      let armoredKey = decryptedMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+      if(armoredKey){
+        let publicKey = await openpgp.readKey({armoredKey});
+        message = await openpgp.readMessage({armoredMessage});
+        let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
+        verifiedSignatures = await this.verifySignatures(decryptedSignedMessageResult.signatures);
+      }
+      return new DecryptedAndVerificationResult(decryptedMimeMessage, verifiedSignatures);
+    }
+    return undefined;
+  }
+}
+
+export class SignatureVerificationResult{
+  constructor(
+    public readonly verified: boolean,
+    public readonly keyId?: string,
+    public readonly errorMessage?: string,
+    public readonly signedAt?: Date,
+  ) {}
+}
+
+export class DecryptedAndVerificationResult{
+  constructor(
+    public readonly mimeMessage: MimeMessage,
+    public readonly signatureVerificationResults: SignatureVerificationResult[],
+  ) {}
 }

@@ -24,6 +24,7 @@ const contentDispositionAttachment = "attachment";
 const contentTypeTextHtml = "text/html";
 const contentTypeTextPlain = "text/plain";
 const contentTypeSigned = "multipart/signed";
+const contentTypeEncrypted = "multipart/encrypted";
 
 // content transfer encoding
 const contentTransferEncodingBase64 = "base64";
@@ -138,6 +139,10 @@ export class MimeMessagePart{
 
   public signedContent(): MimeMessagePart | undefined{
     return this.findChild(part => part.contentType?.includes(contentTypeSigned) ?? false)?.parts[0];
+  }
+
+  public encryptedContent(): MimeMessagePart | undefined{
+    return this.findChild(part => part.contentType?.includes(contentTypeEncrypted) ?? false)?.parts[1];
   }
 
   public findChild(predicate: (part: MimeMessagePart) => boolean): MimeMessagePart | undefined{

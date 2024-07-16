@@ -1,6 +1,8 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import * as openpgp from 'openpgp';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
+import { EmailContent } from '../../classes/email-content/email-content';
+import { Email } from '../../classes/email/email';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 
@@ -215,6 +217,17 @@ export class PgpService {
       return new DecryptedAndVerificationResult(decryptedMimeMessage, verifiedSignatures);
     }
     return undefined;
+  }
+
+  public async encryptMail(email: Email) : Promise<string | undefined>{
+    // todo: find public key of the receiver
+    let key = this.privateKeys.find(k => k.identities.includes(email.sender));
+    if(!key){
+      return;
+    }
+    let privateKey = await openpgp.decryptKey({privateKey: key.key, passphrase: key.passphrase});
+    let publicKey = privateKey.toPublic();
+    return await email.toEncryptedEmailString(publicKey, key.key, key.passphrase);
   }
 }
 

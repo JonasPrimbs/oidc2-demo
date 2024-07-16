@@ -55,7 +55,21 @@ export class Email {
       'To': this.receiver,
       'From': this.sender.claims.email!,
       'Subject': this.subject,
-      'Content-Type': `multipart/signed; micalg=pgp-sha384; protocol="application/pgp-signature"; boundary="${boundary}"`,
+      'Content-Type': `multipart/signed; micalg=pgp-sha384; protocol="application/pgp-signature"; protected-headers="v1"; boundary="${boundary}"`,
+    };
+  }
+
+  /**
+   * Generates a MIME Multipart header for a encrypted email.
+   * @param boundary MIME Boundary.
+   * @returns MIME Multipart header for encrypted email.
+   */
+  public getMultipartEncryptedHeader(boundary: string): EmailHeader {
+    return {
+      'To': this.receiver,
+      'From': this.sender.claims.email!,
+      'Subject': '...',
+      'Content-Type': `multipart/encrypted; protocol="application/pgp-encrypted"; boundary="${boundary}"`,
     };
   }
 
@@ -172,10 +186,43 @@ export class Email {
     const pgpMessage = await openpgp.createMessage({ text: emailString });
 
     // Encrypt the PGP message with the provided public key.
-    return await openpgp.encrypt({
+    const encryptedMailContent = await openpgp.encrypt({
       message: pgpMessage,
       encryptionKeys: pgpPublicKey,
     });
+
+    const outerBoundary = this.generateRandomBoundry();
+
+    // attachment with encrypted content
+    const encryptedAttachment = new AttachmentFile("encrypted.asc", encryptedMailContent, "application/octet-stream", "OpenPGP encrypted message");   
+    
+    // this part is equal for all pgp encrypted mails:
+    const pgpMimeVersionPart = `Content-Type: application/pgp-encrypted
+    Content-Description: PGP/MIME version identification
+
+    Version: 1`;    
+    
+    const outerArr = [
+      // MIME Multipart header:
+      this.headerToString(this.getMultipartEncryptedHeader(outerBoundary)),
+
+      // pgp Mime Version:
+      `--${outerBoundary}\r\n${pgpMimeVersionPart}\r\n--${outerBoundary}`,
+      
+      // encrypted content:
+      this.headerToString(encryptedAttachment.getMimeHeader()),      
+      encryptedAttachment.getBody(),
+
+      // End:
+      `--${outerBoundary}--`,
+    ];
+
+    let finalEncryptedMail = outerArr.join('\r\n\r\n');
+    
+    return window.btoa(finalEncryptedMail)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/\=/g, '');    
   }
 
   /**

@@ -6,6 +6,7 @@ import { decodeBase64url } from 'src/app/byte-array-converter/base64url';
 import { Identity, IdentityService } from '../../../authentication';
 import { Email } from '../../classes/email/email';
 import { MimeMessage, parseMimeMessage } from '../../classes/mime-message/mime-message';
+import { PgpService } from '../pgp/pgp.service';
 
 @Injectable({
   providedIn: 'root',
@@ -27,6 +28,7 @@ export class EmailService {
    */
   constructor(
     private readonly identityService: IdentityService,
+    private readonly pgpService: PgpService,
     private readonly http: HttpClient,
   ) { }
 
@@ -79,10 +81,10 @@ export class EmailService {
    * Sends an email.
    * @param email Email to send.
    */
-  public async sendEmail(email: Email): Promise<void> {
+  public async sendEmail(email: Email): Promise<void> {    
     await firstValueFrom(this.http.post<Record<string, any>>(
       `https://www.googleapis.com/gmail/v1/users/${email.sender.claims.email}/messages/send?uploadType=multipart&format=raw`,
-      { raw: await email.toRawString() },
+      { raw: await this.pgpService.encryptMail(email) },
       {
         headers: {
           'Authorization': `Bearer ${email.sender.accessToken}`,

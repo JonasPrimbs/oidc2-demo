@@ -1,10 +1,11 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import * as openpgp from 'openpgp';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
-import { EmailContent } from '../../classes/email-content/email-content';
+import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
 import { Email } from '../../classes/email/email';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
+import { GmailApiService } from '../gmail-api/gmail-api.service';
 
 @Injectable({
   providedIn: 'root'
@@ -29,13 +30,16 @@ export class PgpService {
    * Adds a PGP private key to privateKeys.
    * @param privateKey PGP Private Key to add.
    */
-  public addPrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): void {
+  public async addPrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): Promise<void> {
     // Add private key to array of private keys.
     this._privateKeys.push(privateKey);
+
+    const attachment = new AttachmentFile("private_key.asc", privateKey.key.armor(), "text/plain");
 
     // Register the private key for all corresponding identities.
     for (const identity of privateKey.identities) {
       this.addKeyFor(identity, privateKey);
+      this.gmailApiService.savePrivateKey(identity, attachment, privateKey);
     }
 
     this.privateKeysChange.emit();
@@ -148,6 +152,7 @@ export class PgpService {
 
   constructor(
     private readonly identityService: IdentityService,
+    private readonly gmailApiService: GmailApiService,
   ) { }
 
 

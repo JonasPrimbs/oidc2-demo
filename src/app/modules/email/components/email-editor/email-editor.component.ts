@@ -69,7 +69,7 @@ export class EmailEditorComponent implements OnInit {
   /**
    * Gets an email instance from the email form.
    */
-  private async getEmail(): Promise<Email | undefined> {
+  private getEmail(): Email | undefined {
     if (!this.emailForm.controls.from.value) {
       return undefined;
     } else {
@@ -79,17 +79,25 @@ export class EmailEditorComponent implements OnInit {
         this.emailForm.controls.subject.value ?? '',
         [
           new EmailContent(this.emailForm.controls.body.value ?? ''),
-        ],
-        this.emailForm.controls.key.value ?? await (async () => {
-          const passphrase = this.identityService.generateRandomString(20);
-          const keyPair = await this.pgpService.generateKeyPair({
-            email: this.emailForm.controls.from.value?.claims.email!,
-            name: this.emailForm.controls.from.value?.claims.name!,
-          }, passphrase);
-          return { key: keyPair.privateKey, passphrase };
-        })(),
+        ]
       );
     }
+  }
+
+  /**
+   * Gets the selected private key or a random key if no key is selected
+   * @returns 
+   */
+  private async getPrivateKey(): Promise<{key: openpgp.PrivateKey, passphrase: string}>{    
+    let privateKey = this.emailForm.controls.key.value ?? await (async () => {
+      const passphrase = this.identityService.generateRandomString(20);
+      const keyPair = await this.pgpService.generateKeyPair({
+        email: this.emailForm.controls.from.value?.claims.email!,
+        name: this.emailForm.controls.from.value?.claims.name!,
+      }, passphrase);
+      return { key: keyPair.privateKey, passphrase };
+    })();
+    return privateKey;
   }
 
   /**
@@ -225,8 +233,11 @@ export class EmailEditorComponent implements OnInit {
    * Sends the email.
    */
   public async sendEmail(): Promise<void> {
+    const privateKey = await this.getPrivateKey();
+    if(!privateKey) return;
+
     // Get the email instance to send.
-    const email = await this.getEmail();
+    const email = this.getEmail();
     if (!email) return;
 
     // Generate new key pair.
@@ -253,7 +264,7 @@ export class EmailEditorComponent implements OnInit {
       const pops = await this.generatePoPAttachment(
         keyPair,
         {
-          fingerprint: email.getPgpFingerprint()?.toUpperCase()!,
+          fingerprint: privateKey.key.getFingerprint().toUpperCase(),
         },
         icts,
         email.receiver,
@@ -263,6 +274,6 @@ export class EmailEditorComponent implements OnInit {
     }
     
     // Send the email instance.
-    await this.emailService.sendEmail(email);
+    await this.emailService.sendEmail(email, privateKey.key, privateKey.passphrase, true);
   }
 }

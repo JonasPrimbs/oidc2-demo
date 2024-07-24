@@ -234,17 +234,6 @@ export class PgpService {
     return undefined;
   }
 
-  public async encryptMail(email: Email) : Promise<string | undefined>{
-    // todo: find public key of the receiver
-    let key = this.privateKeys.find(k => k.identities.includes(email.sender));
-    if(!key){
-      return;
-    }
-    let privateKey = await openpgp.decryptKey({privateKey: key.key, passphrase: key.passphrase});
-    let publicKey = privateKey.toPublic();
-    return await email.toEncryptedEmailString(publicKey, key.key, key.passphrase);
-  }
-
   public getPrettyKeyID(keyID: openpgp.KeyID): string{
     return '0x' + keyID.toHex().toUpperCase();
   }

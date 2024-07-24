@@ -1,3 +1,5 @@
+import * as openpgp from 'openpgp';
+
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { decodeBase64url } from 'src/app/byte-array-converter/base64url';
@@ -60,9 +62,12 @@ export class EmailService {
    * Sends an email.
    * @param email Email to send.
    */
-  public async sendEmail(email: Email): Promise<void> {
-    const emailString = await email.toRawString();
-    console.log(emailString);
+  public async sendEmail(email: Email, privateKey: openpgp.PrivateKey, passphrase: string, encrypted: boolean): Promise<void> {
+    // todo find public keys of the receivers
+    const emailString = encrypted ? 
+              await email.toRawEncryptedMimeString(privateKey, passphrase) : 
+              await email.toRawMimeString(privateKey, passphrase);
+
     await this.gmailApiService.sendMail(email.sender, emailString);
   }
 

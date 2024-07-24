@@ -166,9 +166,9 @@ export class GmailApiService {
   }
 
   public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], pgpPrivateKey: {key: PrivateKey, passphrase: string }, labelName: string): Promise<MessageResult | undefined>{
-    const email = new Email(identity, "", subject, attachments, pgpPrivateKey)
+    const email = new Email(identity, "", subject, attachments)
     
-    const mimeMessage = await email.toRawString();
+    const mimeMessage = await email.toRawMimeString();
 
     let message = await this.importMail(identity, mimeMessage);
 

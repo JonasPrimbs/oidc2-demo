@@ -13,23 +13,13 @@ export class Email {
    * @param receiver Receiver email.
    * @param subject Subject.
    * @param parts Email parts.
-   * @param pgpPrivateKey Private PGP Key for signing.
    */
   constructor(
     public readonly sender: Identity,
     public readonly receiver: string,
     public readonly subject: string,
     public readonly parts: EmailPart[], 
-    private readonly pgpPrivateKey: { key: openpgp.PrivateKey, passphrase: string },
   ) { }
-
-  /**
-   * Gets the PGP Fingerprint of the PGP Private Key.
-   * @returns PGP Fingerprint.
-   */
-  public getPgpFingerprint(): string | undefined {
-    return this.pgpPrivateKey?.key.getFingerprint();
-  }
 
   /**
    * Generates a MIME Multipart header for an email.
@@ -99,27 +89,41 @@ export class Email {
    * @param passphrase Passphrase for the PGP Private Key.
    * @returns Signed email string.
    */
-  public async toEmailString(pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
-    // Get private key.
-    const privateKey = await openpgp.decryptKey({
-      privateKey: pgpPrivateKey,
-      passphrase: passphrase,
-    });
-    // Get public key.
-    const publicKey = privateKey.toPublic();
-    // Get public key ID.
-    const publicKeyId = `0x${publicKey.getKeyID().toHex()}`;
-    // Get public key as armored string.
-    const publicKeyString = publicKey.armor();
+  public async toMimeString(pgpPrivateKey?: openpgp.PrivateKey, passphrase?: string): Promise<string> {
 
-    // Get Public Key as attachment file.
-    const publicKeyAttachment = new AttachmentFile(
-      `OpenPGP_${publicKeyId.toUpperCase()}.asc`,
-      publicKeyString,
-      'application/pgp-keys',
-      'OpenPGP public key',
-      'quoted-printable',
-    );
+    let privateKey: openpgp.PrivateKey | undefined = undefined;
+
+    if(pgpPrivateKey && passphrase && !pgpPrivateKey.isDecrypted()){
+      // Get private key.
+      privateKey = await openpgp.decryptKey({
+        privateKey: pgpPrivateKey,
+        passphrase: passphrase,
+      });
+    }
+
+    let publicKey: openpgp.PublicKey | undefined = undefined;
+    let publicKeyAttachment: AttachmentFile | undefined;
+
+    if(privateKey){
+      // Get public key.
+      publicKey = privateKey.toPublic();
+      // Get public key ID.
+      const publicKeyId = `0x${publicKey.getKeyID().toHex()}`;
+      // Get public key as armored string.
+      const publicKeyString = publicKey.armor();
+  
+      // Get Public Key as attachment file.
+      publicKeyAttachment = new AttachmentFile(
+        `OpenPGP_${publicKeyId.toUpperCase()}.asc`,
+        publicKeyString,
+        'application/pgp-keys',
+        'OpenPGP public key',
+        'quoted-printable',
+      );
+    }
+
+    // skip public key attachment if not available
+    let bodyParts = [...this.parts, publicKeyAttachment].filter(p => p !== undefined) as EmailPart[];    
 
     // Prepare signed content.
     const innerBoundary = this.generateRandomBoundry();
@@ -128,7 +132,7 @@ export class Email {
       this.headerToString(this.getMultipartHeader(innerBoundary)),
 
       // Body parts:
-      ...[...this.parts, publicKeyAttachment].map(part => [
+      ...bodyParts.map(part => [
         // MIME Header:
         `--${innerBoundary}\r\n${this.headerToString(part.getMimeHeader())}`,
         // Body:
@@ -140,30 +144,40 @@ export class Email {
     ];
     const body = innerArr.join('\r\n\r\n');
 
-    // Create signature.
-    const pgpMessage = await openpgp.createMessage({ text: body });
-    const signatrueString = await openpgp.sign({
-      message: pgpMessage,
-      signingKeys: privateKey,
-      detached: true,
-      format: 'armored',
-    });
-        
-    const signatureFile = new AttachmentFile(
-      'OpenPGP_signature.asc',
-      signatrueString,
-      'application/pgp-signature',
-      'OpenPGP digital signature',
-    );
+    // sign the message, if the private key is available
+    let signatureFileAttachment: AttachmentFile | undefined;
+    if(privateKey){
+      // Create signature.
+      const pgpMessage = await openpgp.createMessage({ text: body });
+      const signatrueString = await openpgp.sign({
+        message: pgpMessage,
+        signingKeys: privateKey,
+        detached: true,
+        format: 'armored',
+      });
+          
+      signatureFileAttachment = new AttachmentFile(
+        'OpenPGP_signature.asc',
+        signatrueString,
+        'application/pgp-signature',
+        'OpenPGP digital signature',
+      );
+    }
 
     const outerBoundary = this.generateRandomBoundry();
+
+    let signaturePart = '';
+    if(signatureFileAttachment){
+      signaturePart = `\r\n--${outerBoundary}\r\n${this.headerToString(signatureFileAttachment.getMimeHeader())}\r\n\r\n${signatureFileAttachment.getBody()}`;
+
+    }
+
     const outerArr = [
       // MIME Multipart header:
       this.headerToString(this.getMultipartSignedHeader(outerBoundary)),
 
-      // Signed message + signature:
-      `--${outerBoundary}\r\n${body}\r\n--${outerBoundary}\r\n${this.headerToString(signatureFile.getMimeHeader())}`,
-      signatureFile.getBody(),
+      // Signed message + signature if available:
+      `--${outerBoundary}\r\n${body}${signaturePart}`,
 
       // End:
       `--${outerBoundary}--`,
@@ -178,9 +192,11 @@ export class Email {
    * @param passphrase Passphrase of the PGP Private Key to use it.
    * @returns PGP-encrypted email.
    */
-  public async toEncryptedEmailString(pgpPublicKey: openpgp.PublicKey, pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
-    // Get unencrypted email string.
-    const emailString = await this.toEmailString(pgpPrivateKey, passphrase);
+  public async toEncryptedMimeString(/*pgpPublicKey: openpgp.PublicKey, */pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
+    // Get signed and unencrypted email string.
+    const emailString = await this.toMimeString(pgpPrivateKey, passphrase);
+    let decryptedPrivateKey = await openpgp.decryptKey({privateKey: pgpPrivateKey, passphrase});
+    let pgpPublicKey = decryptedPrivateKey.toPublic();
 
     // Create PGP message from emailString.
     const pgpMessage = await openpgp.createMessage({ text: emailString });
@@ -219,23 +235,31 @@ export class Email {
 
     let finalEncryptedMail = outerArr.join('\r\n\r\n');
     
-    return window.btoa(finalEncryptedMail)
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/\=/g, '');    
+    return finalEncryptedMail;  
   }
 
   /**
+   * Encrypts the email string with PGP and returns as raw string (base64url encoded)
+   * @param pgpPublicKey PGP Public Key of the receiver to encrypt the email with.
+   * @param pgpPrivateKey PGP Private Key of the sender to sign the email with.
+   * @param passphrase Passphrase of the PGP Private Key to use it.
+   * @returns PGP-encrypted email.
+   */
+   public async toRawEncryptedMimeString(/*pgpPublicKey: openpgp.PublicKey, */pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
+    const encryptedMailString = await this.toEncryptedMimeString(pgpPrivateKey, passphrase);
+    return window.btoa(encryptedMailString)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/\=/g, '');  
+   }
+
+  /**
    * Encodes the email Base64URl.
-   * If a PGP public key is provided, the returned raw email string will be encrypted.
    * @returns Base64URL encoded email.
    */
-  public async toRawString(): Promise<string> {
+  public async toRawMimeString(pgpPrivateKey?: openpgp.PrivateKey, passphrase?: string): Promise<string> {
     // Get email string.
-    const mailString = await this.toEmailString(
-      this.pgpPrivateKey.key,
-      this.pgpPrivateKey.passphrase,
-    );
+    const mailString = await this.toMimeString(pgpPrivateKey, passphrase);
     return window.btoa(mailString)
       .replace(/\+/g, '-')
       .replace(/\//g, '_')

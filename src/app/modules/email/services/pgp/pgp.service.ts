@@ -51,7 +51,7 @@ export class PgpService {
 
     // save the private key for all corresponding identities.
     for (const identity of privateKey.identities) {
-      this.gmailApiService.savePrivateKey(identity, attachment, privateKey);
+      this.gmailApiService.savePrivateKey(identity, attachment);
     }
   }
 

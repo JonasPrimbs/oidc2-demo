@@ -165,7 +165,7 @@ export class GmailApiService {
     return result;
   }
 
-  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], pgpPrivateKey: {key: PrivateKey, passphrase: string }, labelName: string): Promise<MessageResult | undefined>{
+  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string): Promise<MessageResult | undefined>{
     const email = new Email(identity, "", subject, attachments)
     
     const mimeMessage = await email.toRawMimeString();
@@ -195,8 +195,8 @@ export class GmailApiService {
     return message;
   }
 
-  public async savePrivateKey(identity: Identity, attachment: AttachmentFile, pgpPrivateKey: {key: PrivateKey, passphrase: string }): Promise<void> {     
-    let message = await this.saveData(identity, "private_key", [attachment], pgpPrivateKey, this.privateKeyLabelName);
+  public async savePrivateKey(identity: Identity, attachment: AttachmentFile): Promise<void> {     
+    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
     
     if(message === undefined){
       return;

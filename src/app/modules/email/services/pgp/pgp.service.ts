@@ -190,7 +190,7 @@ export class PgpService {
   private async verifySignatures(signatures: openpgp.VerificationResult[]){
     let signatureVerificationResults: SignatureVerificationResult[] = [];
     for(let result of signatures){
-      let keyId = '0x' + result.keyID.toHex().toUpperCase();
+      let keyId = this.getPrettyKeyID(result.keyID);
       try{
         signatureVerificationResults.push(new SignatureVerificationResult(await result.verified, keyId, undefined, (await result.signature).packets[0].created ?? undefined));          
       }
@@ -243,6 +243,10 @@ export class PgpService {
     let privateKey = await openpgp.decryptKey({privateKey: key.key, passphrase: key.passphrase});
     let publicKey = privateKey.toPublic();
     return await email.toEncryptedEmailString(publicKey, key.key, key.passphrase);
+  }
+
+  public getPrettyKeyID(keyID: openpgp.KeyID): string{
+    return '0x' + keyID.toHex().toUpperCase();
   }
 }
 

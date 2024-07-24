@@ -17,6 +17,7 @@ import { EmailEditorComponent } from './components/email-editor/email-editor.com
 import { EmailViewComponent } from './components/email-view/email-view.component';
 import { PgpImportComponent } from './components/pgp-import/pgp-import.component';
 import { PgpLoadComponent } from './components/pgp-load/pgp-load.component';
+import { PgpManageComponent } from './components/pgp-manage/pgp-manage.component';
 import { EmailComponent } from './pages/email/email.component';
 import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';
@@ -44,6 +45,7 @@ import { PgpService } from './services/pgp/pgp.service';
     EmailViewComponent,
     PgpImportComponent,
     PgpLoadComponent,
+    PgpManageComponent,
   ],
   providers: [
     GmailApiService,

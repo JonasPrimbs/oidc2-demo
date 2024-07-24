@@ -69,10 +69,10 @@ export class PgpLoadComponent {
           continue;
         }
         let privateKey = await this.pgpService.importPrivateKey(armoredPrivateKey);
-
+        let keyId = this.pgpService.getPrettyKeyID(privateKey.getKeyID());
         let privateKeyControl = new FormGroup<PrivateKeyForm>({
           privateKey: new FormControl<openpgp.PrivateKey>(privateKey),
-          keyId: new FormControl<string>(privateKey.getKeyID().toHex()),
+          keyId: new FormControl<string>(keyId),
           passphrase: new FormControl<string>(''),
         });
         

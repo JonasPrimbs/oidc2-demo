@@ -1,12 +1,8 @@
-<h1>hello</h1>
-
-
-
 <!-- PGP Key Form -->
 <form [formGroup]="pgpForm">
   <!-- Identities Input -->
   <mat-form-field>
-    <mat-label>Identities</mat-label>
+    <mat-label>Identity</mat-label>
     <mat-select matNativeControl autofocus formControlName="identity" required>
       <mat-option *ngFor="let identity of identities" [value]="identity">
         {{ identity.claims.name }} ({{ identity.claims.email }});
@@ -14,17 +10,20 @@
     </mat-select>
   </mat-form-field>
 
-  <div *ngFor="let privateKey of privateKeys">
-    {{ privateKey.getKeyID().toHex() }}
+  <ng-container 
+    formArrayName="privateKeys"
+    *ngFor="let control of pgpForm.controls.privateKeys.controls; let i = index">
+    <div [formGroupName]="i">
+      
+      {{ control.controls.keyId.value }}
+      <mat-form-field>
+        <mat-label>Passphrase</mat-label>
+        <input matInput required formControlName="passphrase" type="password">
+      </mat-form-field>
 
-    <mat-form-field>
-      <mat-label>Passphrase</mat-label>
-      <input matInput required type="password">
-    </mat-form-field>
-
-    <button (click)="load(privateKey, 'abc')" mat-button>
-      load
-    </button>
-
-  </div>
+      <button (click)="load(i)" mat-button>
+        load private key
+      </button>
+    </div>
+  </ng-container>
 </form>

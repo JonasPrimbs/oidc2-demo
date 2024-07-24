@@ -34,15 +34,25 @@ export class PgpService {
     // Add private key to array of private keys.
     this._privateKeys.push(privateKey);
 
-    const attachment = new AttachmentFile("private_key.asc", privateKey.key.armor(), "text/plain");
-
     // Register the private key for all corresponding identities.
     for (const identity of privateKey.identities) {
       this.addKeyFor(identity, privateKey);
-      this.gmailApiService.savePrivateKey(identity, attachment, privateKey);
     }
 
     this.privateKeysChange.emit();
+  }
+
+  /**
+   * Saves a private key to gmail.
+   * @param privateKey PGP Private Key to save.
+   */
+   public async savePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): Promise<void> {
+    const attachment = new AttachmentFile("private_key.asc", privateKey.key.armor(), "text/plain");
+
+    // save the private key for all corresponding identities.
+    for (const identity of privateKey.identities) {
+      this.gmailApiService.savePrivateKey(identity, attachment, privateKey);
+    }
   }
 
   /**

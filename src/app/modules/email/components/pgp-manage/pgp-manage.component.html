@@ -1,9 +1,9 @@
 
-<div *ngFor="let privateKey of privateKeys">
+<div *ngFor="let key of privateKeys" class="pgp-key">
   
-  {{ privateKey.keyId }}
+  {{ key.keyId }}
 
-  <button (click) ="savePrivateKey(privateKey.privateKey)" mat-button>
+  <button (click) ="savePrivateKey(key.privateKey)" mat-stroked-button>
     save private key to gmail
   </button>
 

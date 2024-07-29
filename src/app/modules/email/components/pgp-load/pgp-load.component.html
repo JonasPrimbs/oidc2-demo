@@ -1,5 +1,5 @@
 <!-- PGP Key Form -->
-<form [formGroup]="pgpForm">
+<form class="pgp-load" [formGroup]="pgpForm">
   <!-- Identities Input -->
   <mat-form-field>
     <mat-label>Identity</mat-label>
@@ -13,7 +13,7 @@
   <ng-container 
     formArrayName="privateKeys"
     *ngFor="let control of pgpForm.controls.privateKeys.controls; let i = index">
-    <div [formGroupName]="i">
+    <div [formGroupName]="i" class="pgp-key">
       
       {{ control.controls.keyId.value }}
       <mat-form-field>
@@ -21,7 +21,7 @@
         <input matInput required formControlName="passphrase" type="password">
       </mat-form-field>
 
-      <button (click)="load(i)" mat-button>
+      <button (click)="load(i)" mat-stroked-button>
         load private key
       </button>
     </div>

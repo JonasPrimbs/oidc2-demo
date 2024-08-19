@@ -6,6 +6,7 @@ import { Email } from '../../classes/email/email';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
+import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
 
 @Injectable({
   providedIn: 'root'
@@ -163,6 +164,7 @@ export class PgpService {
   constructor(
     private readonly identityService: IdentityService,
     private readonly gmailApiService: GmailApiService,
+    private readonly oidc2VerificationService: Oidc2VerificationService,
   ) { }
 
 
@@ -183,6 +185,8 @@ export class PgpService {
       let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
       return this.verifySignatures(verifyMessageResult.signatures);      
     }
+
+    this.oidc2VerificationService.verifyOidc2Chain(mimeMessage);
 
     return [new SignatureVerificationResult(false, undefined, 'No Signature available')];
   }
@@ -229,6 +233,9 @@ export class PgpService {
         let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
         verifiedSignatures = await this.verifySignatures(decryptedSignedMessageResult.signatures);
       }
+
+      this.oidc2VerificationService.verifyOidc2Chain(decryptedMimeMessage);
+
       return new DecryptedAndVerificationResult(decryptedMimeMessage, verifiedSignatures);
     }
     return undefined;

@@ -21,6 +21,7 @@ import { PgpManageComponent } from './components/pgp-manage/pgp-manage.component
 import { EmailComponent } from './pages/email/email.component';
 import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';
+import { Oidc2VerificationService } from './services/oidc2-verification/oidc2-verification.service';
 import { PgpService } from './services/pgp/pgp.service';
 
 @NgModule({
@@ -51,6 +52,7 @@ import { PgpService } from './services/pgp/pgp.service';
     GmailApiService,
     EmailService,
     PgpService,
+    Oidc2VerificationService,
   ],
   exports: [
     EmailComponent,

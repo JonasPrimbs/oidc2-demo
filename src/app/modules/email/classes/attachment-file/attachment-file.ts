@@ -5,6 +5,8 @@ import { decodeBody } from '../mime-message-part/mime-message-part';
 // content types
 const contentTypePgpKeys = "application/pgp-keys";
 const contentTypePgpSignature = "application/pgp-signature";
+const contentTypeIct = "application/oidc-squared-ict";
+const contentTypeE2EPoPToken = "application/oidc-squared-e2epop";
 
 export class AttachmentFile implements EmailPart {
   /**
@@ -74,5 +76,13 @@ export class AttachmentFile implements EmailPart {
 
   public isPgpSignature() : boolean{
     return this.contentType === contentTypePgpSignature;
+  }
+
+  public isIct() : boolean{
+    return this.contentType.includes(contentTypeIct);
+  }
+
+  public isE2EPoPToken() : boolean{
+    return this.contentType.includes(contentTypeE2EPoPToken);
   }
 }

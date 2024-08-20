@@ -202,7 +202,7 @@ export class EmailEditorComponent implements OnInit {
             iat: date,
             nbf: date,
             exp: date + 600,
-            pgp: pgpOptions,
+            pgp_fingerprint: pgpOptions.fingerprint,
           },
         );
       }),

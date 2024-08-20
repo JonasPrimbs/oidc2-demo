@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import * as jose from 'jose';
 import { firstValueFrom } from 'rxjs';
-import { SignE2EPoPToken, SignPoPToken } from 'oidc-squared';
+import { SignPoPToken } from 'oidc-squared';
 import { ICTResponse } from 'oidc-squared/dist/rest';
 
 import { encodeBase64url } from '../../../../byte-array-converter';
@@ -11,6 +11,8 @@ import { Identity } from '../../classes/identity/identity.class';
 import { IdentityProvider } from '../../classes/identity-provider/identity-provider.class';
 import { OAUTH_AUTH_CODE_KEY_PREFIX } from '../../pages/oidc-redirect/oidc-redirect.component';
 import { E2ePopClaims } from '../../types/e2e-pop-claims.interface';
+import { SignE2EPoPPGPToken } from '../../types/e2e-pop-pgp-token.interface';
+import { E2ePopPgpClaims } from '../../types/e2e-pop-pgp-claims.interface';
 
 @Injectable({
   providedIn: 'root',
@@ -270,7 +272,6 @@ export class IdentityService {
   private async generatePoPToken(identity: Identity, keyPair: CryptoKeyPair) {
     const publicKey = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
     const popToken = new SignPoPToken();
-    console.log('popToken', JSON.stringify(popToken));
     return await popToken
       .setPublicKey('ES384', publicKey)
       .setIssuer(identity.identityProvider.clientId)
@@ -314,16 +315,23 @@ export class IdentityService {
    * @param claims Claims of the payload.
    * @returns Generated End-to-End Proof-of-Possession Token.
    */
-  public async generateE2ePoP(keyPair: CryptoKeyPair, claims: E2ePopClaims): Promise<string> {
+  public async generateE2ePoP(keyPair: CryptoKeyPair, claims: E2ePopPgpClaims | E2ePopClaims): Promise<string> {
     const jkt = await jose.calculateJwkThumbprint(
       await jose.exportJWK(keyPair.publicKey),
       'sha256',
     );
-    return await new SignE2EPoPToken()
+    
+    let e2ePopToken = new SignE2EPoPPGPToken()
       .setThumbprint('ES384', jkt)
       .setIssuer(claims.iss)
       .setSubject(claims.sub)
-      .setAudience(claims.aud)
+      .setAudience(claims.aud);
+    
+    if(claims.pgp_fingerprint){
+      e2ePopToken.setPgpFingerprint(claims.pgp_fingerprint);
+    }
+
+    return await e2ePopToken
       .sign(keyPair.privateKey);
   }
 }

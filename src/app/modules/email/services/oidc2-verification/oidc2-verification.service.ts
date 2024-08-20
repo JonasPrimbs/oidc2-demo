@@ -57,7 +57,7 @@ export class Oidc2VerificationService {
     let verificationResult : Oidc2VerificationResult = {
       ictVerified: false,
       popVerified: false,
-      pgpKeyId: undefined,
+      pgpFingerprint: undefined,
       errorMessage: undefined,
     };
 
@@ -105,6 +105,7 @@ export class Oidc2VerificationService {
 
       // e2ePoPTokenOption
       let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
+      verifyE2EPoPTokenOptions.requiredClaims = ['pgp_fingerprint']
       verifyE2EPoPTokenOptions.clockTolerance = 30;
       if(verificationDate){
         verifyE2EPoPTokenOptions.currentDate = verificationDate;
@@ -114,9 +115,7 @@ export class Oidc2VerificationService {
 
       // no exception: E2EPoPToken verification successful
       verificationResult.popVerified = true; 
-
-      // todo: pgp-fingerprint muss noch gelesen werden
-      verificationResult.pgpKeyId = '';
+      verificationResult.pgpFingerprint = popVerificationResult.payload['pgp_fingerprint'] as string;
     }
     catch(err){
       if(err instanceof Error){
@@ -135,6 +134,6 @@ export interface IctPopPair{
 export interface Oidc2VerificationResult{
   ictVerified: boolean,
   popVerified: boolean,
-  pgpKeyId: string | undefined,
+  pgpFingerprint: string | undefined,
   errorMessage: string | undefined,
 }

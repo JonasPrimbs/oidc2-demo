@@ -183,7 +183,7 @@ export class PgpService {
       let signature = await openpgp.readSignature({armoredSignature});
       let message = await openpgp.createMessage({text: signedContent});
       let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
-      return this.verifySignaturesAndOidc2Chain(verifyMessageResult.signatures, mimeMessage);      
+      return this.verifySignaturesAndOidc2Chain(verifyMessageResult.signatures, mimeMessage, publicKey);      
     }    
 
     let verificationResult: SignatureVerificationResult = {
@@ -195,19 +195,21 @@ export class PgpService {
     return [ verificationResult ];
   }
 
-  private async verifySignaturesAndOidc2Chain(signatures: openpgp.VerificationResult[], mimeMessage: MimeMessage){
+  private async verifySignaturesAndOidc2Chain(signatures: openpgp.VerificationResult[], mimeMessage: MimeMessage, publicKey: openpgp.PublicKey){
     let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(mimeMessage);
     let verifiedOidc2Results = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Chain(pair, mimeMessage.payload.date)));
 
     let signatureVerificationResults: SignatureVerificationResult[] = [];
     for(let result of signatures){
-      let keyId = this.getPrettyKeyID(result.keyID);      
+      let signatureKeyId = this.getPrettyKeyID(result.keyID); 
+      let keyFingerprint = publicKey.getFingerprint(); 
+
       try{
         await result.verified;
         let signature = await result.signature;
         
         // find oidc2 result with matching pgp-key-id
-        let matchingOidc2Results = verifiedOidc2Results.filter(r => true /*r.pgpKeyId && r.pgpKeyId.toLowerCase() == keyId.toLowerCase()*/);
+        let matchingOidc2Results = verifiedOidc2Results.filter(r => r.pgpFingerprint && r.pgpFingerprint.toLowerCase() === keyFingerprint.toLowerCase());
         
         let verifiedMatchingOidc2Results = matchingOidc2Results.filter(r => r.ictVerified && r.popVerified);
 
@@ -216,7 +218,7 @@ export class PgpService {
           signatureVerificationResults.push({
             signatureVerified: true,
             oidc2ChainVerified: true,
-            keyId: keyId,
+            keyId: signatureKeyId,
             signedAt: signature.packets[0].created ?? undefined
           });          
         }
@@ -226,7 +228,7 @@ export class PgpService {
             errorMessage = 'oidc2 not available';
           }
           else if(matchingOidc2Results.length === 0){
-            errorMessage = 'key-id does not match';
+            errorMessage = verifiedOidc2Results.find(r => r.errorMessage)?.errorMessage ?? 'key-id does not match';
           }
           else{
             errorMessage = matchingOidc2Results.find(r => r.errorMessage && (!r.ictVerified || !r.popVerified))?.errorMessage ?? 'ict or pop not valid';
@@ -235,7 +237,7 @@ export class PgpService {
             signatureVerified: true,
             oidc2ChainVerified: false,
             oidc2ErrorMessage: errorMessage,
-            keyId: keyId,
+            keyId: signatureKeyId,
           });
         }              
       }
@@ -282,7 +284,7 @@ export class PgpService {
         let publicKey = await openpgp.readKey({armoredKey});
         message = await openpgp.readMessage({armoredMessage});
         let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
-        verifiedSignatures = await this.verifySignaturesAndOidc2Chain(decryptedSignedMessageResult.signatures, decryptedMimeMessage);
+        verifiedSignatures = await this.verifySignaturesAndOidc2Chain(decryptedSignedMessageResult.signatures, decryptedMimeMessage, publicKey);
       }
 
       return new DecryptedAndVerificationResult(decryptedMimeMessage, verifiedSignatures);

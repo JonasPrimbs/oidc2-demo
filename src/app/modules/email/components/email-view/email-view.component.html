@@ -12,8 +12,9 @@
 
     <div *ngFor="let signature of signatureResults">
         Signature (Key-ID: {{ signature.keyId }})<br/>
-        Signature: {{ signature.verified ? 'OK' : 'Not OK' }} {{ signature.errorMessage !== undefined ? '(' + signature.errorMessage + ')' : '' }} <br/>
+        Signature: {{ signature.signatureVerified ? 'OK' : 'Not OK' }} {{ signature.signatureErrorMessage !== undefined ? '(' + signature.signatureErrorMessage + ')' : '' }} <br/>
         Signature Date: {{ signature.signedAt }} <br/>
+        Oidc²-chain: {{ signature.oidc2ChainVerified ? 'OK' : 'Not OK' }} {{ signature.oidc2ErrorMessage !== undefined ? '(' + signature.oidc2ErrorMessage + ')' : '' }} <br/>
     </div>
     <div *ngIf="encrypted">
       Encrypted!

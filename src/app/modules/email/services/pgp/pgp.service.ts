@@ -169,7 +169,7 @@ export class PgpService {
 
 
   /**
-   * Verifies a MIME-Message
+   * Verifies a MIME-Message (signature verification & oidc2 verification)
    * @param mimeMessage 
    * @returns 
    */
@@ -183,30 +183,77 @@ export class PgpService {
       let signature = await openpgp.readSignature({armoredSignature});
       let message = await openpgp.createMessage({text: signedContent});
       let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
-      return this.verifySignatures(verifyMessageResult.signatures);      
-    }
+      return this.verifySignaturesAndOidc2Chain(verifyMessageResult.signatures, mimeMessage);      
+    }    
 
-    this.oidc2VerificationService.verifyOidc2Chain(mimeMessage);
+    let verificationResult: SignatureVerificationResult = {
+      signatureVerified: false,
+      oidc2ChainVerified: false,
+      signatureErrorMessage: 'No signature available',
+    };
 
-    return [new SignatureVerificationResult(false, undefined, 'No Signature available')];
+    return [ verificationResult ];
   }
 
-  private async verifySignatures(signatures: openpgp.VerificationResult[]){
+  private async verifySignaturesAndOidc2Chain(signatures: openpgp.VerificationResult[], mimeMessage: MimeMessage){
+    let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(mimeMessage);
+    let verifiedOidc2Results = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Chain(pair, mimeMessage.payload.date)));
+
     let signatureVerificationResults: SignatureVerificationResult[] = [];
     for(let result of signatures){
-      let keyId = this.getPrettyKeyID(result.keyID);
+      let keyId = this.getPrettyKeyID(result.keyID);      
       try{
-        signatureVerificationResults.push(new SignatureVerificationResult(await result.verified, keyId, undefined, (await result.signature).packets[0].created ?? undefined));          
+        await result.verified;
+        let signature = await result.signature;
+        
+        // find oidc2 result with matching pgp-key-id
+        let matchingOidc2Results = verifiedOidc2Results.filter(r => true /*r.pgpKeyId && r.pgpKeyId.toLowerCase() == keyId.toLowerCase()*/);
+        
+        let verifiedMatchingOidc2Results = matchingOidc2Results.filter(r => r.ictVerified && r.popVerified);
+
+        if(verifiedMatchingOidc2Results.length > 0){
+          // signature verification successful and oidc2 chain verification successful
+          signatureVerificationResults.push({
+            signatureVerified: true,
+            oidc2ChainVerified: true,
+            keyId: keyId,
+            signedAt: signature.packets[0].created ?? undefined
+          });          
+        }
+        else{
+          let errorMessage = '';
+          if(verifiedOidc2Results.length === 0){
+            errorMessage = 'oidc2 not available';
+          }
+          else if(matchingOidc2Results.length === 0){
+            errorMessage = 'key-id does not match';
+          }
+          else{
+            errorMessage = matchingOidc2Results.find(r => r.errorMessage && (!r.ictVerified || !r.popVerified))?.errorMessage ?? 'ict or pop not valid';
+          }
+          signatureVerificationResults.push({
+            signatureVerified: true,
+            oidc2ChainVerified: false,
+            oidc2ErrorMessage: errorMessage,
+            keyId: keyId,
+          });
+        }              
       }
       catch(ex){
-        signatureVerificationResults.push(new SignatureVerificationResult(false, keyId, "Invalid signature"));   
+        // signature verification failed
+        signatureVerificationResults.push({
+          signatureVerified: false, 
+          oidc2ChainVerified: false, 
+          signatureErrorMessage: 'invalid signature'
+        });
       }
     }
+    
     return signatureVerificationResults;
   }
 
   /**
-   * decrypt and verifies a mime message
+   * decrypt and verifies a mime message (signature verification & oidc2 verification)
    * @param mimeMessage 
    * @returns 
    */
@@ -222,7 +269,11 @@ export class PgpService {
       let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys});
       
       // the encypted content for thunderbird has only \n for linebreaks instead of \r\n. 
-      let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMessageResult.data.replace(/(?<!\r)\n/g, '\r\n'));
+      let decryptedMimeContent = decryptedMessageResult.data.replace(/(?<!\r)\n/g, '\r\n');
+      if(mimeMessage.payload.date){
+        decryptedMimeContent = `Date: ${mimeMessage.payload.date.toISOString()}\r\n` + decryptedMimeContent;
+      }
+      let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMimeContent);
       let decryptedMimeMessage = new MimeMessage(decryptedMimeMessagePart);
 
       //verify
@@ -231,10 +282,8 @@ export class PgpService {
         let publicKey = await openpgp.readKey({armoredKey});
         message = await openpgp.readMessage({armoredMessage});
         let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
-        verifiedSignatures = await this.verifySignatures(decryptedSignedMessageResult.signatures);
+        verifiedSignatures = await this.verifySignaturesAndOidc2Chain(decryptedSignedMessageResult.signatures, decryptedMimeMessage);
       }
-
-      this.oidc2VerificationService.verifyOidc2Chain(decryptedMimeMessage);
 
       return new DecryptedAndVerificationResult(decryptedMimeMessage, verifiedSignatures);
     }
@@ -246,14 +295,15 @@ export class PgpService {
   }
 }
 
-export class SignatureVerificationResult{
-  constructor(
-    public readonly verified: boolean,
-    public readonly keyId?: string,
-    public readonly errorMessage?: string,
-    public readonly signedAt?: Date,
-  ) {}
+export interface SignatureVerificationResult{  
+  readonly signatureVerified: boolean;
+  readonly oidc2ChainVerified: boolean;
+  readonly keyId?: string;
+  readonly signatureErrorMessage?: string;
+  readonly oidc2ErrorMessage?: string;
+  readonly signedAt?: Date;
 }
+
 
 export class DecryptedAndVerificationResult{
   constructor(

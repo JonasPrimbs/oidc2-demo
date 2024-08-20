@@ -25,79 +25,116 @@ export class Oidc2VerificationService {
     private readonly http: HttpClient,
   ){}
 
-  public async verifyOidc2Chain(mimeMessage: MimeMessage){
+  public getIctPopPairs(mimeMessage: MimeMessage): IctPopPair[]{
+    // extract icts
     let ictAttachment = mimeMessage.payload.attachments.find(a => a.isIct());
-    let ictContent =  ictAttachment?.decodedText();
-    ictContent = ictContent?.substring(ictContent.indexOf(this.beginIct) + this.beginIct.length, ictContent.indexOf(this.endIct)).trim();
-    let icts = ictContent?.split('\r\n');
-    console.log(icts);
+    if(!ictAttachment){
+      return [];
+    }
+    let ictContent =  ictAttachment.decodedText();
+    ictContent = ictContent.substring(ictContent.indexOf(this.beginIct) + this.beginIct.length, ictContent.indexOf(this.endIct)).trim();
+    let icts = ictContent.split('\r\n');
 
+    // extract pops
     let popAttachment = mimeMessage.payload.attachments.find(a => a.isE2EPoPToken());
+    if(!popAttachment){
+      return [];
+    }
     let popContent = popAttachment?.decodedText();
     popContent = popContent?.substring(popContent.indexOf(this.beginE2EPoPToken) + this.beginE2EPoPToken.length, popContent.indexOf(this.endE2EPoPToken)).trim();
     let pops = popContent?.split('\r\n');
-    console.log(pops);
 
-    let ictVerificationSuccessful: boolean = false;
-    let e2ePoPTokenVerificationSuccessful: boolean = false;
+    // create ict/pop pairs
+    let ictPops : IctPopPair[] = [];
+    for(let i = 0; i < Math.min(icts.length, pops.length); i++){
+      ictPops.push({ict: icts[i], pop: pops[i]});
+    }
 
-    if(icts !== undefined && pops !== undefined){
-      // decoded ict/pop for accessing issuer, key-id and alg. NOT VERIFIED!
-      let decodedIctPayload = await jose.decodeJwt(icts[0]);
-      let decodedIctHeader = await jose.decodeProtectedHeader(icts[0]);
-      let decodedE2EPoPHeader = await jose.decodeProtectedHeader(pops[0]);
+    return ictPops;
+  }
 
-      // lookup the public JWK of the ICT
-      let openIdConfigurationUri = decodedIctPayload.iss + this.openIdConfigurationUriPath;
-      let openIdConfiguration = await firstValueFrom(this.http.get<Record<string,any>>(openIdConfigurationUri));
+  public async verifyOidc2Chain(ictPopPair: IctPopPair, verificationDate?: Date) : Promise<Oidc2VerificationResult> {
+    let verificationResult : Oidc2VerificationResult = {
+      ictVerified: false,
+      popVerified: false,
+      pgpKeyId: undefined,
+      errorMessage: undefined,
+    };
 
-      let jwksUri = openIdConfiguration['jwks_uri'];
-      let jwks = await firstValueFrom(this.http.get<Record<string,any[]>>(jwksUri));
-      let publicIctJWK = jwks['keys'].find(k => k.kid === decodedIctHeader.kid);
+    if(!ictPopPair){
+      verificationResult.errorMessage = 'no oidc2 available'
+      return verificationResult;
+    }
 
-      // public key for ICT verification
-      let ictPublicKey = await jose.importJWK(publicIctJWK)
+    // decoded ict for accessing issuer and key-id. NOT VERIFIED!
+    let decodedIctPayload = await jose.decodeJwt(ictPopPair.ict);
+    let decodedIctHeader = await jose.decodeProtectedHeader(ictPopPair.ict);
 
-      // verify options
-      let verifyIctOptions: jose.JWTVerifyOptions = {};
-      // let verifyIctOptions2: ICTVerifyOptions = {}; // alternative
-      // verifyOptions.requiredContext = 'email';
-      verifyIctOptions.currentDate = new Date(1724059925000); // todo (mail receiving date)
+    // lookup the public JWK of the ICT
+    let openIdConfigurationUri = decodedIctPayload.iss + this.openIdConfigurationUriPath;
+    let openIdConfiguration = await firstValueFrom(this.http.get<Record<string,any>>(openIdConfigurationUri));
 
+    let jwksUri = openIdConfiguration['jwks_uri'];
+    let jwks = await firstValueFrom(this.http.get<Record<string,any[]>>(jwksUri));
+    let publicIctJWK = jwks['keys'].find(k => k.kid === decodedIctHeader.kid);
 
+    // public key for ICT verification
+    let ictPublicKey = await jose.importJWK(publicIctJWK)
 
+    // verify options
+    let verifyIctOptions: ICTVerifyOptions = {}; 
+    verifyIctOptions.requiredContext = 'email';
+    verifyIctOptions.clockTolerance = 30;
+    if(verificationDate){
+      verifyIctOptions.currentDate = verificationDate;
+    }
 
-      try{
-        // todo: sobald bug behoben nachfolgende Zeile zur verification verwenden
-        // let ictVerificationResult = await ictVerify(icts[0], ictPublicKey, verifyIctOptions);
-        let ictVerificationResult = await jose.jwtVerify(icts[0], ictPublicKey, verifyIctOptions);
+    try{
+      // todo: sobald bug behoben nachfolgende Zeile zur verification verwenden
+      // let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
+      let ictVerificationResult = await jose.jwtVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
-        // no exception: ICT verification successful
-        ictVerificationSuccessful = true;
-        
-        console.log(ictVerificationResult);
+      // no exception: ICT verification successful
+      verificationResult.ictVerified = true;
+      
+      let publicPoPJWK = (ictVerificationResult.payload['cnf'] as any).jwk;
+      
+      // key have to be extractable (e2ePoPTokenVerify creates a thumbprint of the key)
+      let E2EPoPPublicKey = await crypto.subtle.importKey('jwk', publicPoPJWK, { name: "ECDSA", namedCurve: "P-384", }, true, ['verify']);
+      // let E2EPoPPublicKey = await jose.importJWK(publicPoPJWK, decodedE2EPoPHeader.alg);        
 
-        let publicPoPJWK = (ictVerificationResult.payload['cnf'] as any).jwk;
-        // let key = await window.crypto.subtle.importKey('jwk', publicPoPJWK, 'ES384', true, ['verify']);
-        // let E2EPoPPublicKey = await jose.importJWK(publicPoPJWK, decodedE2EPoPHeader.alg);
-
-        
-
-        // e2ePoPTokenOption
-        // let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
-        // verifyE2EPoPTokenOptions.currentDate = new Date(1724059925000);
-  
-        // let popVerificationResult = await e2ePoPTokenVerify(pops[0], key, verifyE2EPoPTokenOptions);
-
-        // no exception: E2EPoPToken verification successful
-        // e2ePoPTokenVerificationSuccessful = true; // pgp-fingerprint muss noch übereinstimmen
-
-        // console.log(popVerificationResult);
-
+      // e2ePoPTokenOption
+      let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
+      verifyE2EPoPTokenOptions.clockTolerance = 30;
+      if(verificationDate){
+        verifyE2EPoPTokenOptions.currentDate = verificationDate;
       }
-      catch(e){
-        console.log(e);
+
+      let popVerificationResult = await e2ePoPTokenVerify(ictPopPair.pop, E2EPoPPublicKey, verifyE2EPoPTokenOptions);
+
+      // no exception: E2EPoPToken verification successful
+      verificationResult.popVerified = true; 
+
+      // todo: pgp-fingerprint muss noch gelesen werden
+      verificationResult.pgpKeyId = '';
+    }
+    catch(err){
+      if(err instanceof Error){
+        verificationResult.errorMessage = err.message;
       }
     }
+    return verificationResult;
   }
+}
+
+export interface IctPopPair{
+  ict: string,
+  pop: string,
+}
+
+export interface Oidc2VerificationResult{
+  ictVerified: boolean,
+  popVerified: boolean,
+  pgpKeyId: string | undefined,
+  errorMessage: string | undefined,
 }

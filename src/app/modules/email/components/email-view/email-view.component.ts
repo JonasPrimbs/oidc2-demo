@@ -1,18 +1,9 @@
 import { Component } from '@angular/core';
-import { KeyLike, Signature } from 'jose';
-import { ictVerify, ICTVerifyOptions } from 'oidc-squared';
-import { PacketList, PublicKey, SignaturePacket, VerificationResult } from 'openpgp';
-import { Identity, IdentityProvider } from 'src/app/modules/authentication';
-import { EmailContent } from '../../classes/email-content/email-content';
-import { Email } from '../../classes/email/email';
-import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
-import { MimeMessage, parseMimeMessage } from '../../classes/mime-message/mime-message';
-import { EmailService } from '../../services/email/email.service';
-import { PgpService, SignatureVerificationResult } from '../../services/pgp/pgp.service';
 
-import * as jose from 'jose';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
+import { EmailService } from '../../services/email/email.service';
+import { PgpService } from '../../services/pgp/pgp.service';
+import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 
 @Component({
   selector: 'app-email-view',
@@ -22,14 +13,9 @@ import { firstValueFrom } from 'rxjs';
 export class EmailViewComponent {
 
   private mailIndex: number = 0;
-
-  public email: MimeMessage | undefined;
-  
-  public publicKey: PublicKey | undefined;
-
-  public signatureResults : SignatureVerificationResult[] = [];
-
-  public encrypted : boolean = false;;
+  public mimeMessage: MimeMessage | undefined;  
+  public mimeMessageSecurity : MimeMessageSecurityResult | undefined;
+  public showSecurityInfo : boolean = false;
 
   public get disabledNext (){
     return this.mailIndex <= 0;
@@ -42,25 +28,14 @@ export class EmailViewComponent {
     } 
 
     public async loadMail() : Promise<void>{
-      this.publicKey = undefined;
-      this.signatureResults = [];
-      this.encrypted = false;
-      this.email = await this.emailService.readEmail(this.mailIndex);
-      
-      
-      if(this.email?.payload.encryptedContent() !== undefined){
-        let res = await this.pgpService.decryptAndVerifyMimeMessage(this.email);
-        if(res){
-          this.email = res.mimeMessage;
-          this.signatureResults = res.signatureVerificationResults;
-          this.encrypted = true;
-        }
-      }
+      this.showSecurityInfo = false; 
+      this.mimeMessageSecurity = undefined;
+      this.mimeMessage = await this.emailService.readEmail(this.mailIndex);
 
-      if(this.email?.payload.signedContent() !== undefined){
-        this.signatureResults = await this.pgpService.verifyMimeMessage(this.email);
+      if(this.mimeMessage){
+        this.mimeMessageSecurity = await this.pgpService.checkMimeMessageSecurity(this.mimeMessage);
+        this.mimeMessage = this.mimeMessageSecurity.clearetextMimeMessage;
       }
-
     }
     
     public async next(): Promise<void>{
@@ -73,7 +48,16 @@ export class EmailViewComponent {
       await this.loadMail();
     }   
 
+    public toggleSecurityInfo(){
+      this.showSecurityInfo = !this.showSecurityInfo;
+    }
+
+    public allSignaturesValid(securityResult: MimeMessageSecurityResult) : boolean{
+      for(let signature of securityResult.signatureVerificationResults){
+        if(!signature.oidc2ChainVerified || !signature.signatureVerified){
+          return false;
+        }
+      }
+      return true;
+    }
   }
-
-  
-

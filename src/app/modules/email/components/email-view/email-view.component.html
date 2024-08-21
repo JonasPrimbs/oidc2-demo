@@ -6,40 +6,111 @@
   previous
 </button>
 
-<div *ngIf="email !== undefined">
+<div *ngIf="mimeMessage">
   <mat-card class="email-display-card">
-    <mat-card-title>Subject: {{ email.payload.subject }}</mat-card-title>
 
-    <div *ngFor="let signature of signatureResults">
-        Signature (Key-ID: {{ signature.keyId }})<br/>
-        Signature: {{ signature.signatureVerified ? 'OK' : 'Not OK' }} {{ signature.signatureErrorMessage !== undefined ? '(' + signature.signatureErrorMessage + ')' : '' }} <br/>
-        Signature Date: {{ signature.signedAt }} <br/>
-        Oidc²-chain: {{ signature.oidc2ChainVerified ? 'OK' : 'Not OK' }} {{ signature.oidc2ErrorMessage !== undefined ? '(' + signature.oidc2ErrorMessage + ')' : '' }} <br/>
-    </div>
-    <div *ngIf="encrypted">
-      Encrypted!
-    </div>
+    <!--security status + toggle security infos-->
+    <button mat-button matTooltip="security details" 
+            (click)="toggleSecurityInfo()" 
+            class="security-details-button">
+      <mat-icon *ngIf="mimeMessageSecurity && mimeMessageSecurity.encrypted" 
+                class="icon-display"
+                svgIcon="lock-check-outline"/>
+      <mat-icon *ngIf="mimeMessageSecurity && allSignaturesValid(mimeMessageSecurity)" 
+                class="icon-display"
+                svgIcon="certificate"/>
+      <mat-icon *ngIf="mimeMessageSecurity && (!mimeMessageSecurity.encrypted || !allSignaturesValid(mimeMessageSecurity))" 
+                class="icon-display bad"
+                svgIcon="email-alert-outline"/>
+    </button>
 
-    <div *ngIf="publicKey !== undefined">
-      PGP-Key: <br/>
-      Fingerprint: {{ publicKey.getFingerprint() }} <br/>
-      KeyID: {{ publicKey.getKeyID().toHex() }} <br/>
-      User ID: {{ publicKey.getUserIDs() }} <br/>
-      CreationTime: {{ publicKey.getCreationTime() }} <br>
-    </div>
+    <div *ngIf="showSecurityInfo && mimeMessageSecurity">      
+      <!--encryption details-->
+      <h3>Encryption details </h3>
+      <p>
+        <span *ngIf="mimeMessageSecurity.encrypted" class="good">
+          Mail is encrypted! <br/>
+        </span>
+        <span *ngIf="!mimeMessageSecurity.encrypted" class="bad">
+          Mail is NOT encrypted! <br/>
+        </span>
+        
+        <span *ngIf="mimeMessageSecurity.decryptionSuccessful" 
+              class="{{ mimeMessageSecurity.decryptionSuccessful ? 'good' : 'bad' }}">
+          Mail could be decrypted 
+        </span>
+      
+        <span *ngIf="mimeMessageSecurity.decryptionErrorMessage" class="bad">
+          {{ mimeMessageSecurity.decryptionErrorMessage }}
+        </span>
+      </p>
     
-    <mat-card-subtitle>From: {{email.payload.from }}</mat-card-subtitle>
-    <mat-card-subtitle>To: {{ email.payload.to }}</mat-card-subtitle>
-    <mat-card-subtitle>Date: {{ email.payload.date }}</mat-card-subtitle>
+      <!--signature details-->
+      <div *ngFor="let signature of mimeMessageSecurity.signatureVerificationResults">
+        <h3>Signature details </h3>
+        <p>
+          <!--good/bad signature-->
+          <span *ngIf="signature.signatureVerified" class="good">
+            good signature <br/>
+          </span>
+          <span *ngIf="!signature.signatureVerified" class="bad">
+            bad signature <br/>
+          </span>
+  
+          <!--signature error message-->
+          <span *ngIf="signature.signatureErrorMessage" class="bad">
+            {{ signature.signatureErrorMessage }} <br/>
+          </span>
+          
+          <!--signature key ID-->
+          <span *ngIf="signature.keyId">
+            Signature (Key-ID: {{ signature.keyId }}) <br/>
+          </span>
+          
+          <!--signature date-->
+          <span *ngIf="signature.signedAt">
+            Signature Date: {{ signature.signedAt }} <br/>
+          </span>
+  
+          <!--OIDC2 chain-->
+          <span *ngIf="signature.oidc2ChainVerified" class="good">
+            valid OIDC² chain <br/>
+          </span>
+          <span *ngIf="!signature.oidc2ChainVerified" class="bad">
+            invalid OIDC² chain <br/>
+          </span>
+          
+          <!--OIDC2 error message-->
+          <span *ngIf="signature.oidc2ErrorMessage" class="bad">
+            {{ signature.oidc2ErrorMessage }} <br/>
+          </span>
+        </p>
+      </div>      
+      
+      <!--PGP key details-->
+      <div *ngIf="mimeMessageSecurity.publicKey">
+        <h3>PGP-key details </h3>
+        <p>
+          Fingerprint: {{ mimeMessageSecurity.publicKey.getFingerprint().toUpperCase() }} <br/>
+          Key-ID: {{ '0x' + mimeMessageSecurity.publicKey.getKeyID().toHex().toUpperCase() }} <br/>
+          User-ID: {{ mimeMessageSecurity.publicKey.getUserIDs() }} <br/>
+          CreationTime: {{ mimeMessageSecurity.publicKey.getCreationTime() }} <br>
+        </p>
+      </div>
+    </div>  
+
+    <mat-card-title>Subject: {{ mimeMessage.payload.subject }}</mat-card-title>
+    <mat-card-subtitle>From: {{mimeMessage.payload.from }}</mat-card-subtitle>
+    <mat-card-subtitle>To: {{ mimeMessage.payload.to }}</mat-card-subtitle>
+    <mat-card-subtitle>Date: {{ mimeMessage.payload.date }}</mat-card-subtitle>
     
     <mat-card-content class="email-display-content">
-
-      <div [innerHTML]="email.payload.displayText"></div>
+      <div [innerHTML]="mimeMessage.payload.displayText"></div>
     </mat-card-content>
 
     <mat-list>
       <div mat-subheader>Attachments</div>
-      <div *ngFor="let attachment of email.payload.attachments">
+      <div *ngFor="let attachment of mimeMessage.payload.attachments">
         <a [href]="attachment.getDownloadUrl()"
           [download]="attachment.name">
           {{attachment.name}}
@@ -48,7 +119,8 @@
     </mat-list>
   </mat-card>
 </div>
-<div *ngIf="email === undefined">
+
+<div *ngIf="!mimeMessage">
   No Email to show
 </div>
 

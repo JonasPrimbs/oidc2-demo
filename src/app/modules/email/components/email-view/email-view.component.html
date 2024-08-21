@@ -41,7 +41,7 @@
         </span>
       
         <span *ngIf="mimeMessageSecurity.decryptionErrorMessage" class="bad">
-          {{ mimeMessageSecurity.decryptionErrorMessage }}
+          Error: {{ mimeMessageSecurity.decryptionErrorMessage }}
         </span>
       </p>
     
@@ -64,28 +64,87 @@
           
           <!--signature key ID-->
           <span *ngIf="signature.keyId">
-            Signature (Key-ID: {{ signature.keyId }}) <br/>
+            signature (key-ID: {{ signature.keyId }}) <br/>
           </span>
           
           <!--signature date-->
           <span *ngIf="signature.signedAt">
-            Signature Date: {{ signature.signedAt }} <br/>
+            signature date: {{ signature.signedAt }} <br/>
           </span>
   
-          <!--OIDC2 chain-->
-          <span *ngIf="signature.oidc2ChainVerified" class="good">
-            valid OIDC² chain <br/>
+          <!--matching OIDC2 identity-->          
+          <span *ngIf="signature.oidc2Identity" class="good">
+            associated OIDC² identity available: <br/>
+            email: {{ signature.oidc2Identity.email }} <br/>
+            PGP-fingerprint: {{ signature.oidc2Identity.pgpFingerprint }} <br/>
+            ICT-Issuer: {{ signature.oidc2Identity.issuer }} <br/>
           </span>
-          <span *ngIf="!signature.oidc2ChainVerified" class="bad">
-            invalid OIDC² chain <br/>
+          <span *ngIf="!signature.oidc2Identity" class="bad">
+            No associated OIDC² identity available: <br/>
           </span>
           
           <!--OIDC2 error message-->
           <span *ngIf="signature.oidc2ErrorMessage" class="bad">
-            {{ signature.oidc2ErrorMessage }} <br/>
+            Error: {{ signature.oidc2ErrorMessage }} <br/>
           </span>
         </p>
-      </div>      
+      </div>  
+      
+      <div *ngFor="let oidc2VerificationResult of mimeMessageSecurity.oidc2VerificationResults">
+        <h3>OIDC² identity</h3>
+        <p>
+          <!--ict verified-->
+          <span *ngIf="oidc2VerificationResult.ictVerified" class="good">
+            valid Identity Certification Token <br/>
+          </span>
+          <span *ngIf="!oidc2VerificationResult.ictVerified" class="bad">
+            invalid Identity Certification Token <br/>
+          </span>
+
+          <!--pop verified-->
+          <span *ngIf="oidc2VerificationResult.popVerified" class="good">
+            valid end to end Proof of Possession Token <br/>
+          </span>
+          <span *ngIf="!oidc2VerificationResult.popVerified" class="bad">
+            invalid end to end Proof of Possession Token <br/>
+          </span>
+
+          <!--OIDC2 error message-->
+          <span *ngIf="oidc2VerificationResult.errorMessage" class="bad">
+            Error: {{ oidc2VerificationResult.errorMessage }} <br/>
+          </span>
+
+          <!--e-mail address of identity-->
+          <span *ngIf="oidc2VerificationResult.identity">
+            <span *ngIf="oidc2VerificationResult.identity.email">
+              E-Mail: {{ oidc2VerificationResult.identity.email }} <br/>
+            </span>
+
+            <!--e-mail verified of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.email_verified">
+              E-Mail verified <br/>
+            </span>
+            <span *ngIf="!oidc2VerificationResult.identity.email_verified">
+              E-Mail not verified <br/>
+            </span>
+
+            <!--issuer of ICT-->
+            <span *ngIf="oidc2VerificationResult.identity.issuer">
+              ICT-issuer: {{ oidc2VerificationResult.identity.issuer }} <br/>
+            </span>
+
+            <!--preferred username of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.preferred_username">
+              preferred username: {{ oidc2VerificationResult.identity.preferred_username }} <br/>
+            </span>
+
+            <!--PGP fingerprint of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.pgpFingerprint">
+              PGP-fingerprint: {{ oidc2VerificationResult.identity.pgpFingerprint }} <br/>
+            </span>
+          </span>
+        </p>
+      </div>
       
       <!--PGP key details-->
       <div *ngIf="mimeMessageSecurity.publicKey">

@@ -5,6 +5,8 @@ import * as jose from 'jose';
 import { firstValueFrom } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import { e2ePoPTokenVerify, E2EPoPVerifyOptions, ictVerify, ICTVerifyOptions } from "oidc-squared";
+import { Oidc2Identity } from "../../types/oidc2-identity";
+import { Oidc2IdentityVerificationResult as Oidc2IdentityVerificationResult } from "../../types/oidc2-identity-verification-result.interface";
 
 
 
@@ -25,7 +27,12 @@ export class Oidc2VerificationService {
     private readonly http: HttpClient,
   ){}
 
-  public getIctPopPairs(mimeMessage: MimeMessage): IctPopPair[]{
+  /**
+   * Extract the ICT/PoP-pairs of a MimeMessage
+   * @param mimeMessage 
+   * @returns 
+   */
+  public getIctPopPairs(mimeMessage: MimeMessage): {ict: string, pop: string} []{
     // extract icts
     let ictAttachment = mimeMessage.payload.attachments.find(a => a.isIct());
     if(!ictAttachment){
@@ -45,7 +52,7 @@ export class Oidc2VerificationService {
     let pops = popContent?.split('\r\n');
 
     // create ict/pop pairs
-    let ictPops : IctPopPair[] = [];
+    let ictPops : {ict: string, pop: string} [] = [];
     for(let i = 0; i < Math.min(icts.length, pops.length); i++){
       ictPops.push({ict: icts[i], pop: pops[i]});
     }
@@ -53,17 +60,26 @@ export class Oidc2VerificationService {
     return ictPops;
   }
 
-  public async verifyOidc2Chain(ictPopPair: IctPopPair, verificationDate?: Date) : Promise<Oidc2VerificationResult> {
-    let verificationResult : Oidc2VerificationResult = {
-      ictVerified: false,
-      popVerified: false,
-      pgpFingerprint: undefined,
-      errorMessage: undefined,
-    };
+  /**
+   * Verify the OIDC² Identity of a ICT/PoP-pair
+   * @param ictPopPair 
+   * @param verificationDate 
+   * @returns 
+   */
+  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verificationDate?: Date) : Promise<Oidc2IdentityVerificationResult> {
+    let ictVerified: boolean = false;
+    let popVerified: boolean = false;
+    let errorMessage: string | undefined;
+    let identity: Oidc2Identity | undefined;
 
     if(!ictPopPair){
-      verificationResult.errorMessage = 'no oidc2 available'
-      return verificationResult;
+      let result: Oidc2IdentityVerificationResult = {
+        ictVerified: false,
+        popVerified: false,
+        errorMessage: 'no OIDC² available',
+      }
+      
+      return result;
     }
 
     // decoded ict for accessing issuer and key-id. NOT VERIFIED!
@@ -94,14 +110,18 @@ export class Oidc2VerificationService {
       // let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
       let ictVerificationResult = await jose.jwtVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
-      // no exception: ICT verification successful
-      verificationResult.ictVerified = true;
+      // is ICT issuer trustworthy?
+      if(ictVerificationResult.payload.iss && ictVerificationResult.payload.iss === "http://op.localhost/realms/ict"){
+        ictVerified = true;
+      }
+      else{
+        errorMessage = `ICT issuer ${ictVerificationResult.payload.iss} is not trustworthy`;
+      }
       
-      let publicPoPJWK = (ictVerificationResult.payload['cnf'] as any).jwk;
-      
+      let publicPoPJWK = (ictVerificationResult.payload['cnf'] as any).jwk;     
+
       // key have to be extractable (e2ePoPTokenVerify creates a thumbprint of the key)
       let E2EPoPPublicKey = await crypto.subtle.importKey('jwk', publicPoPJWK, { name: "ECDSA", namedCurve: "P-384", }, true, ['verify']);
-      // let E2EPoPPublicKey = await jose.importJWK(publicPoPJWK, decodedE2EPoPHeader.alg);        
 
       // e2ePoPTokenOption
       let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
@@ -114,26 +134,30 @@ export class Oidc2VerificationService {
       let popVerificationResult = await e2ePoPTokenVerify(ictPopPair.pop, E2EPoPPublicKey, verifyE2EPoPTokenOptions);
 
       // no exception: E2EPoPToken verification successful
-      verificationResult.popVerified = true; 
-      verificationResult.pgpFingerprint = popVerificationResult.payload['pgp_fingerprint'] as string;
+      popVerified = true; 
+
+      // create oidc2-identity
+      identity = {
+        email: ictVerificationResult.payload['email'] as string,
+        email_verified: ictVerificationResult.payload['email_verified'] as boolean,
+        issuer: ictVerificationResult.payload.iss ?? '',
+        preferred_username: ictVerificationResult.payload['preferred_username'] as string,
+        pgpFingerprint: popVerificationResult.payload['pgp_fingerprint'] as string,
+      }
     }
     catch(err){
       if(err instanceof Error){
-        verificationResult.errorMessage = err.message;
+        errorMessage = err.message;
       }
     }
-    return verificationResult;
+
+    let oidc2verificationResult : Oidc2IdentityVerificationResult = {
+      ictVerified,
+      popVerified,
+      identity,
+      errorMessage,
+    }
+
+    return oidc2verificationResult;
   }
-}
-
-export interface IctPopPair{
-  ict: string,
-  pop: string,
-}
-
-export interface Oidc2VerificationResult{
-  ictVerified: boolean,
-  popVerified: boolean,
-  pgpFingerprint: string | undefined,
-  errorMessage: string | undefined,
 }

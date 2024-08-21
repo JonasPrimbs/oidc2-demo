@@ -54,7 +54,7 @@ export class EmailViewComponent {
 
     public allSignaturesValid(securityResult: MimeMessageSecurityResult) : boolean{
       for(let signature of securityResult.signatureVerificationResults){
-        if(!signature.oidc2ChainVerified || !signature.signatureVerified){
+        if(!signature.oidc2Identity || !signature.signatureVerified){
           return false;
         }
       }

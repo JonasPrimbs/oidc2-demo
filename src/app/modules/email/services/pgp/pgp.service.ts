@@ -1,5 +1,4 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import * as openpgp from 'openpgp';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
@@ -9,10 +8,20 @@ import { SignatureVerificationResult } from '../../types/signature-verification-
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
 
+import * as openpgp from 'openpgp';
+import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
+
 @Injectable({
   providedIn: 'root'
 })
 export class PgpService {
+
+  constructor(
+    private readonly gmailApiService: GmailApiService,
+    private readonly oidc2VerificationService: Oidc2VerificationService,
+  ) { }
+
+
   // Key Management:
 
   /**
@@ -162,75 +171,10 @@ export class PgpService {
     };
   }
 
-  constructor(
-    private readonly identityService: IdentityService,
-    private readonly gmailApiService: GmailApiService,
-    private readonly oidc2VerificationService: Oidc2VerificationService,
-  ) { }
-
-  private async verifySignaturesAndOidc2Chain(signatures: openpgp.VerificationResult[], mimeMessage: MimeMessage, publicKey: openpgp.PublicKey): Promise<SignatureVerificationResult[]>{
-    let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(mimeMessage);
-    let verifiedOidc2Results = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Chain(pair, mimeMessage.payload.date)));
-
-    let signatureVerificationResults: SignatureVerificationResult[] = [];
-    for(let result of signatures){
-      let signatureKeyId = this.getPrettyKeyID(result.keyID); 
-      let keyFingerprint = publicKey.getFingerprint(); 
-
-      try{
-        await result.verified;
-        let signature = await result.signature;
-        
-        // find oidc2 result with matching pgp-key-id
-        let matchingOidc2Results = verifiedOidc2Results.filter(r => r.pgpFingerprint && r.pgpFingerprint.toLowerCase() === keyFingerprint.toLowerCase());
-        
-        let verifiedMatchingOidc2Results = matchingOidc2Results.filter(r => r.ictVerified && r.popVerified);
-
-        if(verifiedMatchingOidc2Results.length > 0){
-          // signature verification successful and oidc2 chain verification successful
-          signatureVerificationResults.push({
-            signatureVerified: true,
-            oidc2ChainVerified: true,
-            keyId: signatureKeyId,
-            signedAt: signature.packets[0].created ?? undefined
-          });          
-        }
-        else{
-          let errorMessage = '';
-          if(verifiedOidc2Results.length === 0){
-            errorMessage = 'oidc2 not available';
-          }
-          else if(matchingOidc2Results.length === 0){
-            errorMessage = verifiedOidc2Results.find(r => r.errorMessage)?.errorMessage ?? 'key-id does not match';
-          }
-          else{
-            errorMessage = matchingOidc2Results.find(r => r.errorMessage && (!r.ictVerified || !r.popVerified))?.errorMessage ?? 'ict or pop not valid';
-          }
-          signatureVerificationResults.push({
-            signatureVerified: true,
-            oidc2ChainVerified: false,
-            oidc2ErrorMessage: errorMessage,
-            keyId: signatureKeyId,
-          });
-        }              
-      }
-      catch(ex){
-        // signature verification failed
-        signatureVerificationResults.push({
-          signatureVerified: false, 
-          oidc2ChainVerified: false, 
-          signatureErrorMessage: 'invalid signature'
-        });
-      }
-    }
-    
-    return signatureVerificationResults;
-  }
-
   /**
    * checks the security of a mime message.
    * decrypts the message if encrypted.
-   * verifies signatures and oidc2
+   * verifies signatures and oidc2identity
    * @param mimeMessage 
    * @returns 
    */
@@ -242,6 +186,8 @@ export class PgpService {
     let encrypted: boolean = false;
     let decryptionSuccessful: boolean = false;
     let decryptionErrorMessage: string | undefined;
+
+    let signatures : openpgp.VerificationResult[] = [];
     
     let encryptedMessage = processingMimeMessage.payload.encryptedContent()?.body;
 
@@ -272,7 +218,7 @@ export class PgpService {
           publicKey = await openpgp.readKey({armoredKey});
           message = await openpgp.readMessage({armoredMessage: encryptedMessage});
           let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
-          verifiedSignatures.push(... await this.verifySignaturesAndOidc2Chain(decryptedSignedMessageResult.signatures, processingMimeMessage, publicKey));
+          signatures.push(...decryptedSignedMessageResult.signatures);
         }
       }
       catch(err){
@@ -292,14 +238,20 @@ export class PgpService {
       let signature = await openpgp.readSignature({armoredSignature});
       let message = await openpgp.createMessage({text: signedContent});
       let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
-      verifiedSignatures.push(...await this.verifySignaturesAndOidc2Chain(verifyMessageResult.signatures, processingMimeMessage, publicKey));    
-    }    
+      signatures.push(...verifyMessageResult.signatures);
+    }
+
+    let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(processingMimeMessage);
+    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, mimeMessage.payload.date)));
+    
+    if(publicKey){
+      verifiedSignatures = await this.verifyPgpSignatures(signatures, oidc2VerificationResults, publicKey!);
+    }
 
     // mail is neither encrypted nor signed
     if(verifiedSignatures.length === 0){
       let noSignatureResult: SignatureVerificationResult = {
         signatureVerified: false,
-        oidc2ChainVerified: false,
         signatureErrorMessage: 'no signature available',
       };
       verifiedSignatures.push(noSignatureResult);
@@ -309,12 +261,63 @@ export class PgpService {
       encrypted,
       decryptionSuccessful,
       decryptionErrorMessage,
+      oidc2VerificationResults,
       signatureVerificationResults: verifiedSignatures,
       clearetextMimeMessage: processingMimeMessage,
       publicKey: publicKey,
     };
 
     return result;
+  }
+
+  private async verifyPgpSignatures(signatures: openpgp.VerificationResult[], oidc2VerificationResults: Oidc2IdentityVerificationResult[], publicKey: openpgp.PublicKey): Promise<SignatureVerificationResult[]>{  
+    let signatureVerificationResults: SignatureVerificationResult[] = [];
+    for(let result of signatures){
+      let signatureKeyId = this.getPrettyKeyID(result.keyID); 
+      let keyFingerprint = publicKey.getFingerprint(); 
+
+      try{
+        await result.verified;
+        let signature = await result.signature;
+        
+        // find oidc2 result with matching pgp-fingerprint
+        let matchingOidc2Result = oidc2VerificationResults.find(r => r.ictVerified && r.popVerified && r.identity && r.identity.pgpFingerprint && r.identity.pgpFingerprint.toLowerCase() === keyFingerprint.toLowerCase());
+
+        if(matchingOidc2Result){
+          // signature verification successful and oidc2 chain verification successful
+          signatureVerificationResults.push({
+            signatureVerified: true,
+            oidc2Identity: matchingOidc2Result.identity,
+            keyId: signatureKeyId,
+            signedAt: signature.packets[0].created ?? undefined
+          });          
+        }
+        else{
+          let errorMessage = '';
+          if(oidc2VerificationResults.length === 0){
+            errorMessage = 'no OIDC² identity available';
+          }
+          else{
+            errorMessage = `no matching OIDC² identity for PGP-fingerprint ${keyFingerprint.toUpperCase()} found`;
+          }
+          
+          signatureVerificationResults.push({
+            signatureVerified: true,
+            oidc2ErrorMessage: errorMessage,
+            keyId: signatureKeyId,
+          });
+        }              
+      }
+      catch(ex){
+        // signature verification failed
+        signatureVerificationResults.push({
+          signatureVerified: false,
+          signatureErrorMessage: 'invalid signature'
+        });
+      }
+    }
+    
+    return signatureVerificationResults;
   }
 
   public getPrettyKeyID(keyID: openpgp.KeyID): string{

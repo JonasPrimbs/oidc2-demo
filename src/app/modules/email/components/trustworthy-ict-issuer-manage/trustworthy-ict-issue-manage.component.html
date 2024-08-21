@@ -1,0 +1,30 @@
+<form [formGroup]="trustIctIssuer">
+  <!-- Identities Input -->
+  <mat-form-field>
+    <mat-label>Identity</mat-label>
+    <mat-select matNativeControl autofocus formControlName="identity" required>
+      <mat-option *ngFor="let identity of identities" [value]="identity">
+        {{ identity.claims.name }} ({{ identity.claims.email }});
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Issuer</mat-label>
+    <input matInput required formControlName="issuer">
+  </mat-form-field>
+
+  <button (click)="trust()" mat-stroked-button>
+    trust issuer
+  </button>
+</form>
+
+
+<ng-container *ngFor="let issuer of trustworthyIctIssuers">
+
+    {{ issuer.issuer }}
+
+    <button (click)="untrust(issuer)" mat-stroked-button>
+      untrust issuer
+    </button>
+</ng-container>

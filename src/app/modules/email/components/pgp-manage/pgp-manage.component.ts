@@ -7,6 +7,7 @@ import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { decodeAndParseMimeMessage } from '../../classes/mime-message/mime-message';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
+import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
 
 @Component({
   selector: 'app-pgp-manage',
@@ -21,6 +22,7 @@ export class PgpManageComponent {
    */
   constructor(
     private readonly pgpService: PgpService,
+    private readonly gmail: GmailApiService,
   ) 
   { 
     this.pgpService.privateKeysChange.subscribe(() => this.loadKeys());

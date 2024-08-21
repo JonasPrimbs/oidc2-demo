@@ -178,7 +178,7 @@ export class PgpService {
    * @param mimeMessage 
    * @returns 
    */
-  public async checkMimeMessageSecurity(mimeMessage: MimeMessage) : Promise<MimeMessageSecurityResult>{
+  public async checkMimeMessageSecurity(mimeMessage: MimeMessage, verifierIdentity: Identity) : Promise<MimeMessageSecurityResult>{
     let verifiedSignatures: SignatureVerificationResult[] = [];
     let processingMimeMessage: MimeMessage = mimeMessage;
 
@@ -242,7 +242,7 @@ export class PgpService {
     }
 
     let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(processingMimeMessage);
-    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, mimeMessage.payload.date)));
+    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, verifierIdentity, mimeMessage.payload.date)));
     
     if(publicKey){
       verifiedSignatures = await this.verifyPgpSignatures(signatures, oidc2VerificationResults, publicKey!);

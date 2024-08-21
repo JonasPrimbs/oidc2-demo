@@ -1,10 +1,24 @@
 
+<form class="pgp-load" [formGroup]="selectedIdentity">
+  <!-- Identity selection -->
+  <mat-form-field>
+    <mat-label>Identity</mat-label>
+    <mat-select matNativeControl autofocus formControlName="identity" required>
+      <mat-option *ngFor="let identity of identities" [value]="identity">
+        {{ identity.claims.name }} ({{ identity.claims.email }});
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</form>
+
 <button (click)="next()" mat-stroked-button [disabled]="disabledNext">
   next
 </button>
+
 <button (click)="previous()" mat-stroked-button>
   previous
 </button>
+
 
 <div *ngIf="mimeMessage">
   <mat-card class="email-display-card">

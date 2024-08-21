@@ -18,6 +18,7 @@ import { EmailViewComponent } from './components/email-view/email-view.component
 import { PgpImportComponent } from './components/pgp-import/pgp-import.component';
 import { PgpLoadComponent } from './components/pgp-load/pgp-load.component';
 import { PgpManageComponent } from './components/pgp-manage/pgp-manage.component';
+import { TrustworthyIctIssueManageComponent } from './components/trustworthy-ict-issuer-manage/trustworthy-ict-issue-manage.component';
 import { EmailComponent } from './pages/email/email.component';
 import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';
@@ -47,6 +48,7 @@ import { PgpService } from './services/pgp/pgp.service';
     PgpImportComponent,
     PgpLoadComponent,
     PgpManageComponent,
+    TrustworthyIctIssueManageComponent,
   ],
   providers: [
     GmailApiService,

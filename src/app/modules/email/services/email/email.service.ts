@@ -36,14 +36,7 @@ export class EmailService {
   ) { }
 
 
-  public async readEmail(mailIndex: number): Promise<MimeMessage|undefined>{
-
-    // find the google identity to send
-    var identity = this.identityService.identities.find(id => id.identityProvider.name === "Google")
-    if(identity == undefined){
-      return undefined;
-    }
-
+  public async readEmail(mailIndex: number, identity: Identity): Promise<MimeMessage|undefined>{
     let messages = await this.gmailApiService.listMails(identity);
     //todo: delete gmail API accessToken logging
     console.log(identity.accessToken);

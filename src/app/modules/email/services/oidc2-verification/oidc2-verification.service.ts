@@ -1,4 +1,4 @@
-import { Injectable } from "@angular/core";
+import { EventEmitter, Injectable } from "@angular/core";
 import { MimeMessage } from "../../classes/mime-message/mime-message";
 
 import * as jose from 'jose';
@@ -7,6 +7,9 @@ import { HttpClient } from "@angular/common/http";
 import { e2ePoPTokenVerify, E2EPoPVerifyOptions, ictVerify, ICTVerifyOptions } from "oidc-squared";
 import { Oidc2Identity } from "../../types/oidc2-identity";
 import { Oidc2IdentityVerificationResult as Oidc2IdentityVerificationResult } from "../../types/oidc2-identity-verification-result.interface";
+import { Identity } from "src/app/modules/authentication";
+import { GmailApiService } from "../gmail-api/gmail-api.service";
+import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
 
 
 
@@ -25,7 +28,50 @@ export class Oidc2VerificationService {
 
   constructor(
     private readonly http: HttpClient,
+    private readonly gmailApiService: GmailApiService,
   ){}
+
+  /**
+   * Internal represenatation of all trustful issuers.
+   */
+   private _trustworthyIssuers: TrustworthyIctIssuer[] = [];
+
+   public readonly trustworthyIssuersChanged = new EventEmitter<void>();
+
+
+    public get trustworthyIssuers(){
+      return [...this._trustworthyIssuers];
+    }
+
+  private async getTrustworthyIssuers(identity: Identity): Promise<TrustworthyIctIssuer[]>{
+    return this.gmailApiService.loadTrustworthyIctIssuer(identity);
+  }
+
+  public async loadAllIssuers(identity: Identity){
+    let issuers = await this.gmailApiService.loadTrustworthyIctIssuer(identity);
+    let newIssuers = issuers.filter(iss => !this._trustworthyIssuers.includes(iss));
+    this.trustworthyIssuers.push(...newIssuers);
+    if(newIssuers.length > 0){
+      this.trustworthyIssuersChanged.emit();
+    }
+  }
+
+  public async trustIssuer(identity: Identity, issuer: string){
+    let message = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer);
+    if(message){
+      this._trustworthyIssuers.push({identity, issuer, messageId: message?.id});
+      this.trustworthyIssuersChanged.emit();
+    }
+  }
+
+  public async untrustIssuer(untrustedIssuer: TrustworthyIctIssuer){
+    let filtered = this._trustworthyIssuers.filter(t => t !== untrustedIssuer);
+    if(filtered !== this._trustworthyIssuers){
+      this._trustworthyIssuers = filtered;
+      this.trustworthyIssuersChanged.emit();
+    }
+  }
+
 
   /**
    * Extract the ICT/PoP-pairs of a MimeMessage
@@ -66,11 +112,11 @@ export class Oidc2VerificationService {
    * @param verificationDate 
    * @returns 
    */
-  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verificationDate?: Date) : Promise<Oidc2IdentityVerificationResult> {
+  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verifierIdentity: Identity, verificationDate?: Date) : Promise<Oidc2IdentityVerificationResult> {
     let ictVerified: boolean = false;
     let popVerified: boolean = false;
     let errorMessage: string | undefined;
-    let identity: Oidc2Identity | undefined;
+    let oidc2identity: Oidc2Identity | undefined;
 
     if(!ictPopPair){
       let result: Oidc2IdentityVerificationResult = {
@@ -110,8 +156,10 @@ export class Oidc2VerificationService {
       // let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
       let ictVerificationResult = await jose.jwtVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
+      let trustworthyIctIssuer = await (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
+
       // is ICT issuer trustworthy?
-      if(ictVerificationResult.payload.iss && ictVerificationResult.payload.iss === "http://op.localhost/realms/ict"){
+      if(ictVerificationResult.payload.iss && trustworthyIctIssuer.includes(ictVerificationResult.payload.iss)){
         ictVerified = true;
       }
       else{
@@ -137,7 +185,7 @@ export class Oidc2VerificationService {
       popVerified = true; 
 
       // create oidc2-identity
-      identity = {
+      oidc2identity = {
         email: ictVerificationResult.payload['email'] as string,
         email_verified: ictVerificationResult.payload['email_verified'] as boolean,
         issuer: ictVerificationResult.payload.iss ?? '',
@@ -154,7 +202,7 @@ export class Oidc2VerificationService {
     let oidc2verificationResult : Oidc2IdentityVerificationResult = {
       ictVerified,
       popVerified,
-      identity,
+      identity: oidc2identity,
       errorMessage,
     }
 

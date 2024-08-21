@@ -1,10 +1,11 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { PrivateKey } from "openpgp";
 import { firstValueFrom } from "rxjs";
 import { Identity } from "src/app/modules/authentication";
 import { AttachmentFile } from "../../classes/attachment-file/attachment-file";
 import { Email } from "../../classes/email/email";
+import { decodeAndParseMimeMessage } from "../../classes/mime-message/mime-message";
+import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
 
 @Injectable({
   providedIn: 'root',
@@ -196,13 +197,34 @@ export class GmailApiService {
   }
 
   public async savePrivateKey(identity: Identity, attachment: AttachmentFile): Promise<void> {     
-    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
-    
-    if(message === undefined){
-      return;
+    await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
+  }
+
+  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<MessageResult | undefined> {
+    let attachment = new AttachmentFile("trustworthy_ict_issuer.txt", issuer, "text/plain", "trustworthy_ict_issuer");
+    return this.saveData(identity, "ict_issuer", [ attachment ], "TRUSTWORTHY_ICT_ISSUER");
+  }
+
+  public async loadTrustworthyIctIssuer(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
+    let mails = await this.listMails(identity, "label:TRUSTWORTHY_ICT_ISSUER");
+
+    let trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
+    for(let mail of mails){
+      let message = await this.getMessage(identity, mail.id);
+      if(message?.raw){
+        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        let trustworthyIssuerAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === "trustworthy_ict_issuer.txt");
+        for(let attachment of trustworthyIssuerAttachments){
+          trustworthyIctIssuers.push({ 
+            identity: identity, 
+            issuer: attachment.decodedText().trim(), 
+            messageId: mail.id
+          });
+        }
+      }
     }
 
-    
+    return trustworthyIctIssuers;
   }
 }
 

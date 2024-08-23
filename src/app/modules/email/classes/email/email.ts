@@ -187,16 +187,14 @@ export class Email {
 
   /**
    * Encrypts the email string with PGP.
-   * @param pgpPublicKey PGP Public Key of the receiver to encrypt the email with.
+   * @param encryptionKeys PGP Public Keys of the receivers to encrypt the email with.
    * @param pgpPrivateKey PGP Private Key of the sender to sign the email with.
    * @param passphrase Passphrase of the PGP Private Key to use it.
    * @returns PGP-encrypted email.
    */
-  public async toEncryptedMimeString(/*pgpPublicKey: openpgp.PublicKey, */pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
+  public async toEncryptedMimeString(encryptionKeys: openpgp.PublicKey[], pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
     // Get signed and unencrypted email string.
     const emailString = await this.toMimeString(pgpPrivateKey, passphrase);
-    let decryptedPrivateKey = await openpgp.decryptKey({privateKey: pgpPrivateKey, passphrase});
-    let pgpPublicKey = decryptedPrivateKey.toPublic();
 
     // Create PGP message from emailString.
     const pgpMessage = await openpgp.createMessage({ text: emailString });
@@ -204,7 +202,7 @@ export class Email {
     // Encrypt the PGP message with the provided public key.
     const encryptedMailContent = await openpgp.encrypt({
       message: pgpMessage,
-      encryptionKeys: pgpPublicKey,
+      encryptionKeys,
     });
 
     const outerBoundary = this.generateRandomBoundry();
@@ -240,13 +238,13 @@ export class Email {
 
   /**
    * Encrypts the email string with PGP and returns as raw string (base64url encoded)
-   * @param pgpPublicKey PGP Public Key of the receiver to encrypt the email with.
+   * @param encryptionKeys PGP Public Keys of the receivers to encrypt the email with.
    * @param pgpPrivateKey PGP Private Key of the sender to sign the email with.
    * @param passphrase Passphrase of the PGP Private Key to use it.
    * @returns PGP-encrypted email.
    */
-   public async toRawEncryptedMimeString(/*pgpPublicKey: openpgp.PublicKey, */pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
-    const encryptedMailString = await this.toEncryptedMimeString(pgpPrivateKey, passphrase);
+   public async toRawEncryptedMimeString(encryptionKeys: openpgp.PublicKey[], pgpPrivateKey: openpgp.PrivateKey, passphrase: string): Promise<string> {
+    const encryptedMailString = await this.toEncryptedMimeString(encryptionKeys, pgpPrivateKey, passphrase);
     return window.btoa(encryptedMailString)
       .replace(/\+/g, '-')
       .replace(/\//g, '_')

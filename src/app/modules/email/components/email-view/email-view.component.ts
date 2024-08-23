@@ -29,14 +29,14 @@ export class EmailViewComponent {
     private readonly identityService: IdentityService,
   )
   { 
-
+    this.identityService.identitiesChange.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
   } 
 
   /**
     * Gets the available google identities.
     */
   public get identities(): Identity[] {
-    return this.identityService.identities.filter(i => i.identityProvider.name === "Google");
+    return this.identityService.identities.filter(i => i.hasGoogleIdentityProvider);
   }
 
   /**
@@ -85,4 +85,27 @@ export class EmailViewComponent {
       }
       return true;
     }
+
+  public get disabledSaveTrustfullPublicKey (){
+    return !this.selectedIdentity.controls.identity.value || !this.mimeMessageSecurity || !this.mimeMessageSecurity.publicKey || !this.allSignaturesValid(this.mimeMessageSecurity);
+  } 
+
+  /**
+   * save the public key as trustfull public key
+   */
+  public saveTrustfullPublicKey(){
+    let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
+    if(!this.disabledSaveTrustfullPublicKey && senderMail){
+      this.pgpService.savePublicKeyOwnership(this.selectedIdentity.controls.identity.value!, this.mimeMessageSecurity?.publicKey!, senderMail!);
+    }
   }
+
+  /**
+   * select the default google identity on identities changed
+   */
+  private async selectDefaultGoogleIdentityOnIdentitiesChanged(){
+    if(!this.selectedIdentity.controls.identity.value && this.identities.length > 0){
+      this.selectedIdentity.controls.identity.setValue(this.identities[0]);
+    }
+  }
+}

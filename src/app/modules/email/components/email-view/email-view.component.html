@@ -19,6 +19,10 @@
   previous
 </button>
 
+<button (click)="saveTrustfullPublicKey()" mat-stroked-button [disabled]="disabledSaveTrustfullPublicKey">
+  save public key
+</button>
+
 
 <div *ngIf="mimeMessage">
   <mat-card class="email-display-card">

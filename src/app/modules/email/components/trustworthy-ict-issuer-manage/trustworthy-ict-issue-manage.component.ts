@@ -27,14 +27,13 @@ export class TrustworthyIctIssueManageComponent {
   ) 
   {
     this.oidc2VerivicationService.trustworthyIssuersChanged.subscribe(() => this.reloadTrustwortyIssuers());
-    this.trustIctIssuer.controls.identity.valueChanges.subscribe(id => this.loadAllIssuers(id ?? undefined));
   }
 
   /**
    * Gets the available google identities.
    */
    public get identities(): Identity[] {
-    return this.identityService.identities.filter(i => i.identityProvider.name === "Google");
+    return this.identityService.identities.filter(i => i.hasGoogleIdentityProvider);
   }
 
   
@@ -73,16 +72,6 @@ export class TrustworthyIctIssueManageComponent {
    */
   public async untrust(untrust: TrustworthyIctIssuer){
     await this.oidc2VerivicationService.untrustIssuer(untrust);
-  }
-
-  /**
-   * loads all trusted issuers of an identity
-   * @param identity 
-   */
-  public async loadAllIssuers(identity: Identity | undefined){
-    if(identity){
-      this.oidc2VerivicationService.loadAllIssuers(identity);
-    }
   }
 
   /**

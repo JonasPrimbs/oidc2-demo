@@ -55,14 +55,22 @@ export class EmailService {
    * Sends an email.
    * @param email Email to send.
    */
-  public async sendEmail(email: Email, privateKey: openpgp.PrivateKey, passphrase: string, encrypted: boolean): Promise<void> {
-    // todo find public keys of the receivers
-    const emailString = encrypted ? 
-              await email.toRawEncryptedMimeString(privateKey, passphrase) : 
-              await email.toRawMimeString(privateKey, passphrase);
-
-    await this.gmailApiService.sendMail(email.sender, emailString);
-  }
-
-  
+  public async sendEmail(email: Email, privateKey: openpgp.PrivateKey, passphrase: string, encrypted: boolean): Promise<boolean> {
+    let emailString: string | undefined;
+    
+    if(encrypted){
+      let encryptionKeys = this.pgpService.getEncryptionKeys(email.sender, email.receiver);
+      if(encryptionKeys!== undefined){
+        emailString = await email.toRawEncryptedMimeString(encryptionKeys, privateKey, passphrase);
+      }
+    }
+    else{
+      emailString = await email.toRawMimeString(privateKey, passphrase);
+    }
+    if(emailString !== undefined){
+      await this.gmailApiService.sendMail(email.sender, emailString);
+      return true;
+    }
+    return false;
+  }  
 }

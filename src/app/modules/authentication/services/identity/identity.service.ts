@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { EventEmitter, Injectable } from '@angular/core';
 import * as jose from 'jose';
 import { firstValueFrom } from 'rxjs';
 import { SignPoPToken } from 'oidc-squared';
@@ -18,10 +18,14 @@ import { E2ePopPgpClaims } from '../../types/e2e-pop-pgp-claims.interface';
   providedIn: 'root',
 })
 export class IdentityService {
+  
+  public readonly identitiesChange = new EventEmitter<void>();
+
   /**
    * Internal array of identities.
    */
   private readonly _identities: Identity[] = [];
+
   /**
    * Gets an unmodifiable array of identities.
    */
@@ -255,9 +259,11 @@ export class IdentityService {
     firstValueFrom(identity.onLogout).then(() => {
       const index = this._identities.indexOf(identity);
       this._identities.splice(index, 1);
+      this.identitiesChange.emit();
     });
     // Add the identity to the array of identities.
     this._identities.push(identity);
+    this.identitiesChange.emit();
 
     return identity;
   }

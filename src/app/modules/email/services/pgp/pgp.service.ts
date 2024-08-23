@@ -7,9 +7,10 @@ import { MimeMessageSecurityResult } from '../../types/mime-message-security-res
 import { SignatureVerificationResult } from '../../types/signature-verification-result.interface';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
+import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
 
 import * as openpgp from 'openpgp';
-import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
+import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -19,8 +20,10 @@ export class PgpService {
   constructor(
     private readonly gmailApiService: GmailApiService,
     private readonly oidc2VerificationService: Oidc2VerificationService,
-  ) { }
-
+    private readonly identityService: IdentityService,
+  ) { 
+    this.identityService.identitiesChange.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
+  }
 
   // Key Management:
 
@@ -58,7 +61,7 @@ export class PgpService {
    * @param privateKey PGP Private Key to save.
    */
    public async savePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): Promise<void> {
-    const attachment = new AttachmentFile("private_key.asc", privateKey.key.armor(), "text/plain");
+    const attachment = new AttachmentFile(this.gmailApiService.privateKeyAttachmentFileName, privateKey.key.armor(), "text/plain");
 
     // save the private key for all corresponding identities.
     for (const identity of privateKey.identities) {
@@ -75,6 +78,57 @@ export class PgpService {
     this._privateKeys.splice(index, 1);
 
     this.privateKeysChange.emit();
+  }
+
+  // public key ownerships
+
+  private _publicKeyOwnerships: PublicKeyOwnership[] = [];
+
+  public get publicKeyOwnerships(): PublicKeyOwnership[]{
+    return [...this._publicKeyOwnerships];
+  }
+
+  public readonly publicKeyOwnershipsChange = new EventEmitter<void>();
+
+  /**
+   * save a public key to gmail.
+   * @param identity 
+   * @param publicKey 
+   * @param sender
+   */
+  public async savePublicKeyOwnership(identity: Identity, publicKey: openpgp.PublicKey, sender: string){
+    const attachment = new AttachmentFile(this.gmailApiService.publicKeyAttachmentFileName, publicKey.armor(), "text/plain");
+    let messageId = await this.gmailApiService.savePublicKey(identity, attachment, sender);
+    if(messageId){
+      this._publicKeyOwnerships.push({identity, messageId, publicKey, publicKeyOwner: sender});
+      this.publicKeyOwnershipsChange.emit();
+    }
+  }
+
+  /**
+   * Removes a public key ownership
+   * @param publicKeyOwnership 
+   */
+  public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership): Promise<void>{
+    const index = this.publicKeyOwnerships.indexOf(publicKeyOwnership);
+    this._publicKeyOwnerships.splice(index, 1);
+    await this.gmailApiService.deleteMesage(publicKeyOwnership.identity, publicKeyOwnership.messageId);
+    this.publicKeyOwnershipsChange.emit();
+  }
+
+  /**
+   * loads the public key ownerships on identities changed
+   */
+  private async loadPublicKeyOwnershipsOnIdentitiesChanged(){
+    let newPublicKeyOwnerships: PublicKeyOwnership[] = [];
+    for(let identity of this.identityService.identities){
+      if(identity.hasGoogleIdentityProvider){
+        let publicKeyOwnerships = await this.gmailApiService.loadPublicKeyOwnerships(identity);
+        newPublicKeyOwnerships.push(...publicKeyOwnerships); 
+      }
+    }
+    this._publicKeyOwnerships = [...newPublicKeyOwnerships];
+    this.publicKeyOwnershipsChange.emit();
   }
 
   // Identity -> Key Mapping:
@@ -322,6 +376,34 @@ export class PgpService {
 
   public getPrettyKeyID(keyID: openpgp.KeyID): string{
     return '0x' + keyID.toHex().toUpperCase();
+  }
+
+  /**
+   * returns true, if the sender identity can encrypt a mail for the receiver
+   * @param sender 
+   * @param receiver 
+   * @returns 
+   */
+  public canBeEncrypted(sender: Identity, receiver: string): boolean{
+    return this.getEncryptionKeys(sender, receiver) !== undefined;
+  }
+
+  /**
+   * get the encryption keys for all receivers. returns undefined if for any receiver couldnt find any encryptionKey
+   * @param receiver 
+   * @returns 
+   */
+  public getEncryptionKeys(sender: Identity, receiver: string): openpgp.PublicKey[] | undefined{
+    let receivers = receiver.split(',').map(r => r.toLowerCase().trim());
+    let encryptionKeys: openpgp.PublicKey[] = [];
+    for(let r of receivers){
+      let owner = this.publicKeyOwnerships.find(p => p.identity === sender && p.publicKeyOwner.toLowerCase() === r);
+      if(owner === undefined){
+        return undefined;
+      }
+      encryptionKeys.push(owner.publicKey);
+    }
+    return encryptionKeys;
   }
 }
 

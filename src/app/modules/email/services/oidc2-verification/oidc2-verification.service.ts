@@ -7,7 +7,7 @@ import { HttpClient } from "@angular/common/http";
 import { e2ePoPTokenVerify, E2EPoPVerifyOptions, ictVerify, ICTVerifyOptions } from "oidc-squared";
 import { Oidc2Identity } from "../../types/oidc2-identity";
 import { Oidc2IdentityVerificationResult as Oidc2IdentityVerificationResult } from "../../types/oidc2-identity-verification-result.interface";
-import { Identity } from "src/app/modules/authentication";
+import { Identity, IdentityService } from "src/app/modules/authentication";
 import { GmailApiService } from "../gmail-api/gmail-api.service";
 import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
 
@@ -29,7 +29,22 @@ export class Oidc2VerificationService {
   constructor(
     private readonly http: HttpClient,
     private readonly gmailApiService: GmailApiService,
-  ){}
+    private readonly identityService: IdentityService,
+  ){
+    this.identityService.identitiesChange.subscribe(() => this.onIdentitiesChanged());
+  }
+
+  private async onIdentitiesChanged(){
+    let newTrustworthyIssuers: TrustworthyIctIssuer[] = [];
+    for(let identity of this.identityService.identities){
+      if(identity.hasGoogleIdentityProvider){
+        let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuer(identity)
+        newTrustworthyIssuers.push(...newIssuers); 
+      }
+    }
+    this._trustworthyIssuers = [...newTrustworthyIssuers];
+    this.trustworthyIssuersChanged.emit();
+  }
 
   /**
    * Internal represenatation of all trustful issuers.
@@ -45,15 +60,6 @@ export class Oidc2VerificationService {
 
   private async getTrustworthyIssuers(identity: Identity): Promise<TrustworthyIctIssuer[]>{
     return this.gmailApiService.loadTrustworthyIctIssuer(identity);
-  }
-
-  public async loadAllIssuers(identity: Identity){
-    let issuers = await this.gmailApiService.loadTrustworthyIctIssuer(identity);
-    let newIssuers = issuers.filter(iss => !this._trustworthyIssuers.includes(iss));
-    this._trustworthyIssuers.push(...newIssuers);
-    if(newIssuers.length > 0){
-      this.trustworthyIssuersChanged.emit();
-    }
   }
 
   public async trustIssuer(identity: Identity, issuer: string){

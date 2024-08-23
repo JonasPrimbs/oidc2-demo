@@ -64,6 +64,7 @@ export class EmailEditorComponent implements OnInit {
     body: new FormControl<string>(''),
     key: new FormControl<{ key: openpgp.PrivateKey, passphrase: string } | undefined>(undefined),
     identities: new FormControl<Identity[]>([]),
+    encryption: new FormControl<boolean>({value: false, disabled: true}),
   });
 
   /**
@@ -110,7 +111,11 @@ export class EmailEditorComponent implements OnInit {
     private readonly emailService: EmailService,
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
-  ) { }
+  ) { 
+    this.emailForm.controls.from.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
+    this.emailForm.controls.to.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
+    this.pgpService.publicKeyOwnershipsChange.subscribe(() => this.updateEncryptionDisabledState());
+  }
 
   /**
    * Initializes the component.
@@ -274,6 +279,19 @@ export class EmailEditorComponent implements OnInit {
     }
     
     // Send the email instance.
-    await this.emailService.sendEmail(email, privateKey.key, privateKey.passphrase, true);
+    await this.emailService.sendEmail(email, privateKey.key, privateKey.passphrase, this.emailForm.controls.encryption.value ?? false);
+  }
+
+  /**
+   * update the disabled state of the encryption-checkbox
+   */
+  public updateEncryptionDisabledState(){
+    if(this.emailForm.controls.to.value && this.emailForm.controls.from.value && this.pgpService.canBeEncrypted(this.emailForm.controls.from.value, this.emailForm.controls.to.value)){
+      this.emailForm.controls.encryption.enable();
+    }
+    else{
+      this.emailForm.controls.encryption.disable();
+      this.emailForm.controls.encryption.setValue(false);
+    }
   }
 }

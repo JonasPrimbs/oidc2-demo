@@ -4,8 +4,11 @@ import { firstValueFrom } from "rxjs";
 import { Identity } from "src/app/modules/authentication";
 import { AttachmentFile } from "../../classes/attachment-file/attachment-file";
 import { Email } from "../../classes/email/email";
-import { decodeAndParseMimeMessage } from "../../classes/mime-message/mime-message";
+import { decodeAndParseMimeMessage, MimeMessage } from "../../classes/mime-message/mime-message";
+import { PublicKeyOwnership } from "../../types/public-key-ownership.interface";
 import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
+
+import * as openpgp from 'openpgp';
 
 @Injectable({
   providedIn: 'root',
@@ -14,6 +17,11 @@ export class GmailApiService {
 
   readonly privateKeyLabelName = "PRIVATE_KEY";
   readonly publicKeyLabelName = "PUBLIC_KEY";
+  readonly trustworthyIctIssuerLabelName = "TRUSTWORTHY_ICT_ISSUER";
+
+  public readonly publicKeyAttachmentFileName = "public_key.asc";
+  public readonly privateKeyAttachmentFileName = "private_key.asc";
+  readonly trustworthyIctIssuerAttachmentFileName = "trustworthy_ict_issuer.txt";
 
   constructor(
     private readonly http: HttpClient,
@@ -214,24 +222,84 @@ export class GmailApiService {
     return message;
   }
 
+  public async loadData(identity: Identity, query: string) : Promise<MimeMessage[]>{
+    let mails = await this.listMails(identity, query);
+
+    let mimeMessages: MimeMessage[] = [];
+    for(let mail of mails){
+      let message = await this.getMessage(identity, mail.id);
+      if(message?.raw){
+        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        mimeMessages.push(parsedMimeMessage);
+      }
+    }
+
+    return mimeMessages;
+  }
+
   public async savePrivateKey(identity: Identity, attachment: AttachmentFile): Promise<void> {     
     await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
   }
 
-  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<MessageResult | undefined> {
-    let attachment = new AttachmentFile("trustworthy_ict_issuer.txt", issuer, "text/plain", "trustworthy_ict_issuer");
-    return this.saveData(identity, "ict_issuer", [ attachment ], "TRUSTWORTHY_ICT_ISSUER");
+  public async savePublicKey(identity: Identity, attachment: AttachmentFile, sender: string) : Promise<string | void>{
+    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName);
+    return message?.id;
   }
 
+  /**
+   * Load the trusted public keys of a gmail identity
+   * @param identity 
+   * @returns 
+   */
+   public async loadPublicKeyOwnerships(identity: Identity) : Promise<PublicKeyOwnership[]>{
+    let mails = await this.listMails(identity, `label:${this.publicKeyLabelName}`);
+
+    let publicKeyOwnerships: PublicKeyOwnership[] = [];
+    for(let mail of mails){
+      let message = await this.getMessage(identity, mail.id);
+      if(message?.raw){
+        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        let publicKeyOwnershipAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === this.publicKeyAttachmentFileName);
+        for(let attachment of publicKeyOwnershipAttachments){
+          let publicKey = await openpgp.readKey({ armoredKey: attachment.decodedText() })
+          publicKeyOwnerships.push({ 
+            identity: identity, 
+            publicKeyOwner: parsedMimeMessage.payload.subject ?? '',
+            publicKey, 
+            messageId: mail.id
+          });
+        }
+      }
+    }
+
+    return publicKeyOwnerships;
+  }
+
+  /**
+   * save a trustworthy ict issuer to gmail
+   * @param identity 
+   * @param issuer 
+   * @returns 
+   */
+  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<MessageResult | undefined> {
+    let attachment = new AttachmentFile(this.trustworthyIctIssuerAttachmentFileName, issuer, "text/plain", "trustworthy_ict_issuer");
+    return this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName);
+  }
+
+  /**
+   * Load the trustworty ict issuer of a identity
+   * @param identity 
+   * @returns 
+   */
   public async loadTrustworthyIctIssuer(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
-    let mails = await this.listMails(identity, "label:TRUSTWORTHY_ICT_ISSUER");
+    let mails = await this.listMails(identity, `label:${this.trustworthyIctIssuerLabelName}`);
 
     let trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
     for(let mail of mails){
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
-        let trustworthyIssuerAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === "trustworthy_ict_issuer.txt");
+        let trustworthyIssuerAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === this.trustworthyIctIssuerAttachmentFileName);
         for(let attachment of trustworthyIssuerAttachments){
           trustworthyIctIssuers.push({ 
             identity: identity, 

@@ -39,4 +39,11 @@ export class Identity {
   public async logout(): Promise<void> {
     this.onLogout.emit();
   }
+
+  /**
+   * Checks wether this identity has google-identity provider
+   */
+  public get hasGoogleIdentityProvider():boolean{
+    return this.identityProvider.name === "Google";
+  }
 }

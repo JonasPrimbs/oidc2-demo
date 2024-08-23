@@ -20,11 +20,27 @@
 </form>
 
 
-<ng-container *ngFor="let issuer of trustworthyIctIssuers">
+<table mat-table [dataSource]="trustworthyIctIssuers" class="trustworthy-issuers-table">
 
-    {{ issuer.issuer }}
+  <ng-container matColumnDef="identity">
+    <th mat-header-cell *matHeaderCellDef> identity </th>
+    <td mat-cell *matCellDef="let trustworthyIssuer"> {{ trustworthyIssuer.identity.claims.name }} ({{ trustworthyIssuer.identity.claims.email }}) </td>
+  </ng-container>
 
-    <button (click)="untrust(issuer)" mat-stroked-button>
-      untrust issuer
-    </button>
-</ng-container>
+  <ng-container matColumnDef="issuer">
+    <th mat-header-cell *matHeaderCellDef> issuer </th>
+    <td mat-cell *matCellDef="let trustworthyIssuer"> {{ trustworthyIssuer.issuer }} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="delete">
+    <th mat-header-cell *matHeaderCellDef> untrust issuer </th>
+    <td mat-cell *matCellDef="let trustworthyIssuer"> 
+      <button (click)="untrust(trustworthyIssuer)" mat-stroked-button>
+        untrust issuer
+      </button>  
+    </td>
+  </ng-container>
+  
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>

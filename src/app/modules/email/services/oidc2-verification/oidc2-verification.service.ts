@@ -50,7 +50,7 @@ export class Oidc2VerificationService {
   public async loadAllIssuers(identity: Identity){
     let issuers = await this.gmailApiService.loadTrustworthyIctIssuer(identity);
     let newIssuers = issuers.filter(iss => !this._trustworthyIssuers.includes(iss));
-    this.trustworthyIssuers.push(...newIssuers);
+    this._trustworthyIssuers.push(...newIssuers);
     if(newIssuers.length > 0){
       this.trustworthyIssuersChanged.emit();
     }
@@ -66,6 +66,7 @@ export class Oidc2VerificationService {
 
   public async untrustIssuer(untrustedIssuer: TrustworthyIctIssuer){
     let filtered = this._trustworthyIssuers.filter(t => t !== untrustedIssuer);
+    await this.gmailApiService.deleteMesage(untrustedIssuer.identity, untrustedIssuer.messageId);
     if(filtered !== this._trustworthyIssuers){
       this._trustworthyIssuers = filtered;
       this.trustworthyIssuersChanged.emit();

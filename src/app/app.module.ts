@@ -53,6 +53,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
             'https://www.googleapis.com/auth/gmail.send',
             'https://www.googleapis.com/auth/gmail.labels',
             'https://www.googleapis.com/auth/gmail.modify',
+            'https://mail.google.com/',
           ],
         ),
       ]),

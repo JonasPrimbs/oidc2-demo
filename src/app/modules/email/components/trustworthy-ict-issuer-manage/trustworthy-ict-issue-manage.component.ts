@@ -23,11 +23,10 @@ export class TrustworthyIctIssueManageComponent {
    */
   constructor(
     private readonly identityService: IdentityService,
-    private readonly gmailApiService: GmailApiService,
     private readonly oidc2VerivicationService: Oidc2VerificationService,
   ) 
   {
-    this.oidc2VerivicationService.trustworthyIssuersChanged.subscribe(() => this.reload());
+    this.oidc2VerivicationService.trustworthyIssuersChanged.subscribe(() => this.reloadTrustwortyIssuers());
     this.trustIctIssuer.controls.identity.valueChanges.subscribe(id => this.loadAllIssuers(id ?? undefined));
   }
 
@@ -38,23 +37,29 @@ export class TrustworthyIctIssueManageComponent {
     return this.identityService.identities.filter(i => i.identityProvider.name === "Google");
   }
 
-  // public privateKeys : openpgp.PrivateKey[] = [];
-
+  
   /**
-     * Form Group 
-     */
+   * the trust ict issuer form group
+   */
   public readonly trustIctIssuer = new FormGroup({
     identity: new FormControl<Identity | undefined>(undefined),
     issuer: new FormControl<string>(''),
   });
-
+  
+  /**
+   * the trustworthy ict issuers
+   */
   public trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
+  
+  /**
+   * displayed columns of the trustworthy ict issuers table
+   */
+  public displayedColumns: string[] = ['issuer', 'identity', 'delete'];
 
-  public reload(){
-    this.trustworthyIctIssuers = this.oidc2VerivicationService.trustworthyIssuers;
-    // console.log('reload');
-  }
-
+  
+  /**
+   * trust an issuer
+   */
   public async trust(){
     if(this.trustIctIssuer.controls.identity.value && this.trustIctIssuer.controls.issuer.value){
       await this.oidc2VerivicationService.trustIssuer(this.trustIctIssuer.controls.identity.value, this.trustIctIssuer.controls.issuer.value);
@@ -62,15 +67,29 @@ export class TrustworthyIctIssueManageComponent {
     }
   }
 
+  /**
+   * untrust an issuer
+   * @param untrust 
+   */
   public async untrust(untrust: TrustworthyIctIssuer){
     await this.oidc2VerivicationService.untrustIssuer(untrust);
   }
 
+  /**
+   * loads all trusted issuers of an identity
+   * @param identity 
+   */
   public async loadAllIssuers(identity: Identity | undefined){
     if(identity){
       this.oidc2VerivicationService.loadAllIssuers(identity);
     }
   }
 
+  /**
+   * reload trustworthy issuers on trustworthy issuers changed
+   */
+  private reloadTrustwortyIssuers(){
+    this.trustworthyIctIssuers = this.oidc2VerivicationService.trustworthyIssuers;
+  }
   
 }

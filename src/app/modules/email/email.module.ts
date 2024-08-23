@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs'; 
+import { MatTableModule } from '@angular/material/table';
 
 import { AuthenticationModule } from '../authentication';
 import { EmailEditorComponent } from './components/email-editor/email-editor.component';
@@ -37,6 +38,7 @@ import { PgpService } from './services/pgp/pgp.service';
     MatInputModule,
     MatSelectModule,
     MatTabsModule,
+    MatTableModule,
     MatListModule,
     ReactiveFormsModule,
     TextFieldModule,

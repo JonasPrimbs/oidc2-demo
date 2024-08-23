@@ -166,6 +166,24 @@ export class GmailApiService {
     return result;
   }
 
+  /**
+   * Delete a message by id
+   * @param identity 
+   * @param messageId 
+   * @returns 
+   */
+  public async deleteMesage(identity: Identity, messageId: string): Promise<void>{
+    await firstValueFrom(this.http.delete<Record<string,any>>(
+      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/${messageId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${identity.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    ));
+  }
+
   public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string): Promise<MessageResult | undefined>{
     const email = new Email(identity, "", subject, attachments)
     

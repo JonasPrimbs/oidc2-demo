@@ -2,9 +2,8 @@ import { Identity } from "../../authentication";
 
 import * as openpgp from 'openpgp';
 
-export interface PublicKeyOwnership{
+export interface OnlinePrivateKey{
   readonly identity: Identity;
-  readonly publicKeyOwner: string;
   readonly messageId: string;
-  readonly key: openpgp.PublicKey;
+  readonly privateKey: openpgp.PrivateKey;
 }

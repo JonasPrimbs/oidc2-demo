@@ -3,13 +3,8 @@ import { Component } from '@angular/core';
 import * as openpgp from 'openpgp';
 
 import { PgpService } from '../../services/pgp/pgp.service';
-import { Identity, IdentityService } from 'src/app/modules/authentication';
-import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
-import { decodeAndParseMimeMessage } from '../../classes/mime-message/mime-message';
-import { FormArray, FormControl, FormGroup } from '@angular/forms';
-import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
-import { PrivateKeyRepresentation } from '../../types/private-key-representation.interface';
+import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 
 @Component({
   selector: 'app-pgp-manage',
@@ -27,32 +22,59 @@ export class PgpManageComponent {
   ) 
   { }
 
-  public get publicKeyOwnerships() {
-    return this.pgpService.publicKeyOwnerships;
-  }
-
+  /**
+   * displayed columns of the private key table
+   */
+  public displayedPrivateKeyColumns: string[] = ['privIdentity', 'privKey', 'privAction'];
+  
+  /**
+   * private keys
+   */
   public get privateKeys(){
     return this.pgpService.privateKeys;
   }
 
-  public async savePrivateKey(privateKey: PrivateKeyRepresentation){
+  /**
+   * save private key to google
+   * @param privateKey 
+   */
+  public async savePrivateKey(privateKey: PrivateKeyOwnership){
     await this.pgpService.savePrivateKey(privateKey);
   }
 
-  public async deletePrivateKey(privateKey: PrivateKeyRepresentation){
+  /**
+   * delete private key from google
+   * @param privateKey 
+   */
+  public async deletePrivateKey(privateKey: PrivateKeyOwnership){
     await this.pgpService.deletePrivateKey(privateKey);
   }
-
-   /**
+   
+  /**
    * displayed columns of the public key table
    */
-    public displayedPublicKeyColumns: string[] = ['pubIdentity', 'pubOwner', 'pubKey', 'pubDelete'];
-    public displayedPrivateKeyColumns: string[] = ['privIdentity', 'privKey', 'privAction'];
+  public displayedPublicKeyColumns: string[] = ['pubIdentity', 'pubOwner', 'pubKey', 'pubDelete'];
 
-  public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership){
-    this.pgpService.removePublicKeyOwnership(publicKeyOwnership);
+  /**
+   * public keys
+   */
+   public get publicKeys() {
+    return this.pgpService.publicKeys;
   }
 
+  /**
+   * delete public key from google
+   * @param publicKey 
+   */
+  public async deletePublicKey(publicKey: PublicKeyOwnership){
+    this.pgpService.deletePublicKey(publicKey);
+  }
+
+  /**
+   * get the pretty key ID of a key
+   * @param key 
+   * @returns 
+   */
   public getKeyId(key: openpgp.PublicKey | openpgp.PrivateKey): string{
     return this.pgpService.getPrettyKeyID(key.getKeyID());
   }

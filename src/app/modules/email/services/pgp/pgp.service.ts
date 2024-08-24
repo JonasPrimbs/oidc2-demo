@@ -1,6 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
-import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
@@ -8,11 +7,10 @@ import { SignatureVerificationResult } from '../../types/signature-verification-
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
 import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
+import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
+import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 
 import * as openpgp from 'openpgp';
-import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
-import { PrivateKeyRepresentation } from '../../types/private-key-representation.interface';
-import { identity } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -32,11 +30,11 @@ export class PgpService {
   /**
    * Internal represenatation of all private keys.
    */
-  private readonly _privateKeys: PrivateKeyRepresentation[] = [];
+  private readonly _privateKeys: PrivateKeyOwnership[] = [];
   /**
    * Gets a readonly array of all private keys.
    */
-  public get privateKeys(): PrivateKeyRepresentation[] {
+  public get privateKeys(): PrivateKeyOwnership[] {
     return [ ...this._privateKeys ];
   }
 
@@ -46,15 +44,9 @@ export class PgpService {
    * Adds a PGP private key to privateKeys.
    * @param privateKey PGP Private Key to add.
    */
-  public async addPrivateKey(privateKey: PrivateKeyRepresentation): Promise<void> {
+  public async addPrivateKey(privateKey: PrivateKeyOwnership): Promise<void> {
     // Add private key to array of private keys.
     this._privateKeys.push(privateKey);
-
-    // Register the private key for all corresponding identities.
-    for (const identity of privateKey.identities) {
-      this.addKeyFor(identity, privateKey);
-    }
-
     this.privateKeysChange.emit();
   }
 
@@ -62,18 +54,14 @@ export class PgpService {
    * Saves a private key to gmail.
    * @param privateKey PGP Private Key to save.
    */
-   public async savePrivateKey(privateKey: PrivateKeyRepresentation): Promise<PrivateKeyRepresentation | undefined> {
-    const attachment = new AttachmentFile(this.gmailApiService.privateKeyAttachmentFileName, privateKey.key.armor(), "text/plain");
-
-    // save the private key for all corresponding google identities.
-    for (const identity of privateKey.identities) {
-      if(identity.hasGoogleIdentityProvider){
-        let messageId = await this.gmailApiService.savePrivateKey(identity, attachment);
-        if(messageId){
-          privateKey.messageId = messageId;
-        }
+   public async savePrivateKey(privateKey: PrivateKeyOwnership): Promise<PrivateKeyOwnership | undefined> {
+    if(privateKey.identity.hasGoogleIdentityProvider){
+      let messageId = await this.gmailApiService.savePrivateKey(privateKey.identity, privateKey.key);
+      if(messageId){
+        privateKey.messageId = messageId;
       }
     }
+    
     return undefined;
   }
 
@@ -81,7 +69,7 @@ export class PgpService {
    * Removes a PGP Private Key from privateKeys.
    * @param privateKey PGP Private Key to remove.
    */
-  public removePrivateKey(privateKey: PrivateKeyRepresentation): void {
+  public removeLocalPrivateKey(privateKey: PrivateKeyOwnership): void {
     const index = this._privateKeys.indexOf(privateKey);
     this._privateKeys.splice(index, 1);
     this.privateKeysChange.emit();
@@ -91,21 +79,28 @@ export class PgpService {
    * removes a private key and delete it in google 
    * @param privateKey 
    */
-  public deletePrivateKey(privateKey: PrivateKeyRepresentation): void {
-    this.removePrivateKey(privateKey);
+  public deletePrivateKey(privateKey: PrivateKeyOwnership): void {
+    this.removeLocalPrivateKey(privateKey);
     if(privateKey.messageId){
-      for(let identity of privateKey.identities){
-        this.gmailApiService.deleteMesage(identity, privateKey.messageId);
-      }
+      this.gmailApiService.deleteMesage(privateKey.identity, privateKey.messageId);
     }
   }
 
-  // public key ownerships
+  /**
+   * Gets all registered keys for an identity.
+   * @param identity Identity to get keys for.
+   * @returns The PGP Key for the requested identity.
+   */
+  public getKeysFor(identity: Identity): PrivateKeyOwnership[] {
+    return this._privateKeys.filter(pk => pk.identity === identity);
+  }
 
-  private _publicKeyOwnerships: PublicKeyOwnership[] = [];
+  // public keys
 
-  public get publicKeyOwnerships(): PublicKeyOwnership[]{
-    return [...this._publicKeyOwnerships];
+  private _publicKeys: PublicKeyOwnership[] = [];
+
+  public get publicKeys(): PublicKeyOwnership[]{
+    return [...this._publicKeys];
   }
 
   public readonly publicKeyOwnershipsChange = new EventEmitter<void>();
@@ -116,24 +111,33 @@ export class PgpService {
    * @param publicKey 
    * @param sender
    */
-  public async savePublicKeyOwnership(identity: Identity, publicKey: openpgp.PublicKey, sender: string){
-    const attachment = new AttachmentFile(this.gmailApiService.publicKeyAttachmentFileName, publicKey.armor(), "text/plain");
-    let messageId = await this.gmailApiService.savePublicKey(identity, attachment, sender);
+  public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string){    
+    let messageId = await this.gmailApiService.savePublicKey(identity, publicKey, sender);
     if(messageId){
-      this._publicKeyOwnerships.push({identity, messageId, publicKey, publicKeyOwner: sender});
+      this._publicKeys.push({identity, messageId, key: publicKey, publicKeyOwner: sender});
       this.publicKeyOwnershipsChange.emit();
     }
   }
 
   /**
-   * Removes a public key ownership
+   * Removes a public key local
    * @param publicKeyOwnership 
    */
-  public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership): Promise<void>{
-    const index = this.publicKeyOwnerships.indexOf(publicKeyOwnership);    
-    this._publicKeyOwnerships.splice(index, 1);
-    await this.gmailApiService.deleteMesage(publicKeyOwnership.identity, publicKeyOwnership.messageId);
+  public async removeLocalPublicKey(publicKeyOwnership: PublicKeyOwnership): Promise<void>{
+    const index = this.publicKeys.indexOf(publicKeyOwnership);    
+    this._publicKeys.splice(index, 1);
     this.publicKeyOwnershipsChange.emit();
+  }
+
+  /**
+   * delete a public key local and on google
+   * @param publicKey 
+   */
+   public async deletePublicKey(publicKey: PublicKeyOwnership): Promise<void>{
+    this.removeLocalPublicKey(publicKey);
+    if(publicKey.messageId){
+      await this.gmailApiService.deleteMesage(publicKey.identity, publicKey.messageId);
+    }
   }
 
   /**
@@ -147,38 +151,8 @@ export class PgpService {
         newPublicKeyOwnerships.push(...publicKeyOwnerships); 
       }
     }
-    this._publicKeyOwnerships = [...newPublicKeyOwnerships];
+    this._publicKeys = [...newPublicKeyOwnerships];
     this.publicKeyOwnershipsChange.emit();
-  }
-
-  // Identity -> Key Mapping:
-
-  /**
-   * Mapping from an identity instance to its corresponding PGP keys.
-   */
-  private readonly _identityPrivateKeys = new Map<Identity, PrivateKeyRepresentation[]>();
-
-  /**
-   * Adds a PGP private key for an identity.
-   * @param identity Identity.
-   * @param key PGP Private Key.
-   */
-  public addKeyFor(identity: Identity, key: PrivateKeyRepresentation) {
-    const keys = this._identityPrivateKeys.get(identity);
-    if (keys) {
-      keys.push(key);
-    } else {
-      this._identityPrivateKeys.set(identity, [key]);
-    }
-  }
-
-  /**
-   * Gets all registered keys for an identity.
-   * @param identity Identity to get keys for.
-   * @returns The PGP Key for the requested identity.
-   */
-  public getKeysFor(identity: Identity): PrivateKeyRepresentation[] {
-    return this._identityPrivateKeys.get(identity) ?? [];
   }
 
   // Key Generation / Import:
@@ -429,11 +403,11 @@ export class PgpService {
     let receivers = receiver.split(',').map(r => r.toLowerCase().trim());
     let encryptionKeys: openpgp.PublicKey[] = [];
     for(let r of receivers){
-      let owner = this.publicKeyOwnerships.find(p => p.identity === sender && p.publicKeyOwner.toLowerCase() === r);
+      let owner = this.publicKeys.find(p => p.identity === sender && p.publicKeyOwner.toLowerCase() === r);
       if(owner === undefined){
         return undefined;
       }
-      encryptionKeys.push(owner.publicKey);
+      encryptionKeys.push(owner.key);
     }
     return encryptionKeys;
   }

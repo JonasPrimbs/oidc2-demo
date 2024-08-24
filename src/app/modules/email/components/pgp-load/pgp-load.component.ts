@@ -4,7 +4,7 @@ import { PgpService } from '../../services/pgp/pgp.service';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
-import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
+import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 
 @Component({
   selector: 'app-pgp-load',
@@ -44,15 +44,18 @@ export class PgpLoadComponent {
     privateKeys: new FormArray<FormGroup<PrivateKeyForm>>([]),
   });
 
+  /**
+   * reload the online (gmail) private keys
+   */
   public async relaodPrivateKeys(){
     for(let identity of this.identities){
-      let privateKeyOwnerships = await this.gmailApiService.loadPrivateKeyOwnerships(identity);
+      let privateKeys = await this.gmailApiService.loadPrivateKeys(identity);
       
-      for(let privateKeyOwnership of privateKeyOwnerships){
-        let keyId = this.pgpService.getPrettyKeyID(privateKeyOwnership.privateKey.getKeyID());
+      for(let privateKey of privateKeys){
+        let keyId = this.pgpService.getPrettyKeyID(privateKey.privateKey.getKeyID());
         
         let privateKeyControl = new FormGroup<PrivateKeyForm>({
-          privateKeyOwnership: new FormControl<PrivateKeyOwnership>(privateKeyOwnership),
+          privateKeyOwnership: new FormControl<OnlinePrivateKey>(privateKey),
           keyId: new FormControl<string>(keyId),
           passphrase: new FormControl<string>(''),
         });
@@ -62,20 +65,24 @@ export class PgpLoadComponent {
     }
   }
 
-  public async load(i: number){
+  /**
+   * import an online private key for use
+   * @param i 
+   */
+  public async import(i: number){
     let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
     let passphrase = privateKeyForm.controls.passphrase.value;
     let privateKeyOwnership = privateKeyForm.controls.privateKeyOwnership.value;
 
     if(passphrase && privateKeyOwnership){
-      this.pgpService.addPrivateKey({key: privateKeyOwnership.privateKey, identities: [privateKeyOwnership.identity], passphrase, messageId: privateKeyOwnership.messageId});
+      this.pgpService.addPrivateKey({key: privateKeyOwnership.privateKey, identity: privateKeyOwnership.identity, passphrase, messageId: privateKeyOwnership.messageId});
       this.pgpForm.controls.privateKeys.removeAt(i);
     }
   }
 }
 
 type PrivateKeyForm = { 
-  privateKeyOwnership: FormControl<PrivateKeyOwnership | null>,
+  privateKeyOwnership: FormControl<OnlinePrivateKey | null>,
   keyId: FormControl<string | null>,
   passphrase: FormControl<string | null>,
 };

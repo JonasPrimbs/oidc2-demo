@@ -1,4 +1,3 @@
-
 <h3>Add new trustworthy ICT issuer</h3>
 
 <form [formGroup]="trustIctIssuer">
@@ -22,7 +21,7 @@
   </button>
 </form>
 
-<h3>Available trustworthy ICT issuers</h3>
+<h3>Available trustworthy ICT issuers ({{ trustworthyIctIssuers.length }})</h3>
 
 <table mat-table [dataSource]="trustworthyIctIssuers" class="trustworthy-issuers-table">
 

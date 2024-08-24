@@ -124,7 +124,7 @@ export class EmailViewComponent {
   public saveTrustfulPublicKey(){
     let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
     if(!this.disabledSaveTrustfullPublicKey && senderMail){
-      this.pgpService.savePublicKeyOwnership(this.selectedIdentity.controls.identity.value!, this.mimeMessageSecurity?.publicKey!, senderMail!);
+      this.pgpService.savePublicKey(this.selectedIdentity.controls.identity.value!, this.mimeMessageSecurity?.publicKey!, senderMail!);
     }
   }
 

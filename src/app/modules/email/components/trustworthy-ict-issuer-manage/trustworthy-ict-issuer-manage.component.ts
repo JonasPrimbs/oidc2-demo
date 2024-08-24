@@ -55,7 +55,6 @@ export class TrustworthyIctIssueManageComponent {
    */
   public displayedColumns: string[] = ['identity', 'issuer', 'delete'];
 
-  
   /**
    * trust an issuer
    */
@@ -80,5 +79,4 @@ export class TrustworthyIctIssueManageComponent {
   private reloadTrustwortyIssuers(){
     this.trustworthyIctIssuers = this.oidc2VerivicationService.trustworthyIssuers;
   }
-  
 }

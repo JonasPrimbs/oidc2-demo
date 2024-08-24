@@ -45,11 +45,10 @@ export class EmailEditorComponent implements OnInit {
     const identity = this.emailForm.controls.from.value;
     const keys = identity ? this.pgpService.getKeysFor(identity) : [];
     this.availableKeys = keys.map(key => {
-      const firstIdentity = key.identities[0];
       return {
         key: key.key,
         passphrase: key.passphrase,
-        name: `${firstIdentity?.claims.name} (${firstIdentity.identityProvider.name})`,
+        name: `${key.identity.claims.name} (${key.identity.identityProvider.name})`,
       };
     });
   }

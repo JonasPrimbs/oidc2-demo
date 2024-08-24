@@ -93,12 +93,14 @@ export class PgpImportComponent {
     const pgpKeyString = new TextDecoder('utf-8').decode(pgpKeyFile);
     const pgpPrivateKey = await this.pgpService.importPrivateKey(pgpKeyString);
 
-    // Register the imported private key.
-    this.pgpService.addPrivateKey({
-      key: pgpPrivateKey,
-      identities: identities,
-      passphrase: passphrase,
-    });
+    for(let identity of identities){
+      // Register the imported private key for each identity.
+      this.pgpService.addPrivateKey({
+        key: pgpPrivateKey,
+        identity,
+        passphrase: passphrase,
+      });
+    }
 
     // Reset the PGP Form.
     this.pgpForm.reset();

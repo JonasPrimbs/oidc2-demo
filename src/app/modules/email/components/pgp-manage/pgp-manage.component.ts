@@ -43,6 +43,12 @@ export class PgpManageComponent {
     await this.pgpService.deletePrivateKey(privateKey);
   }
 
+   /**
+   * displayed columns of the public key table
+   */
+    public displayedPublicKeyColumns: string[] = ['pubIdentity', 'pubOwner', 'pubKey', 'pubDelete'];
+    public displayedPrivateKeyColumns: string[] = ['privIdentity', 'privKey', 'privAction'];
+
   public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership){
     this.pgpService.removePublicKeyOwnership(publicKeyOwnership);
   }

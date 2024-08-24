@@ -9,6 +9,7 @@ import { PublicKeyOwnership } from "../../types/public-key-ownership.interface";
 import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
 
 import * as openpgp from 'openpgp';
+import { PrivateKeyOwnership } from "../../types/private-key-ownership.interface";
 
 @Injectable({
   providedIn: 'root',
@@ -143,16 +144,24 @@ export class GmailApiService {
    * @returns 
    */
   public async listMails(identity: Identity, query = "in:inbox"): Promise<ListMailResult[]>{
-    var result = await firstValueFrom(this.http.get<{messages: ListMailResult[]}>(
-      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages?q=${query}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${identity.accessToken}`,
-          'Content-Type': 'application/json',
+    try{
+      var result = await firstValueFrom(this.http.get<{messages: ListMailResult[]|undefined}>(
+        `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages?q=${query}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${identity.accessToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      },
-    ));
-    return result.messages;
+      ));
+      if(result.messages){
+        return result.messages;
+      }
+      return [];
+    }
+    catch(err){
+      return [];
+    }    
   }
 
   /**
@@ -192,6 +201,14 @@ export class GmailApiService {
     ));
   }
 
+  /**
+   * saves attachment-file data to a mail with a specific label
+   * @param identity 
+   * @param subject 
+   * @param attachments 
+   * @param labelName 
+   * @returns 
+   */
   public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string): Promise<MessageResult | undefined>{
     const email = new Email(identity, "", subject, attachments)
     
@@ -222,25 +239,46 @@ export class GmailApiService {
     return message;
   }
 
-  public async loadData(identity: Identity, query: string) : Promise<MimeMessage[]>{
-    let mails = await this.listMails(identity, query);
 
-    let mimeMessages: MimeMessage[] = [];
-    for(let mail of mails){
+  /**
+   * save the private key of a gmail identity
+   * @param identity 
+   * @param attachment 
+   */
+  public async savePrivateKey(identity: Identity, attachment: AttachmentFile): Promise<string|undefined> {     
+    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
+    return message?.id;
+  }
+
+  /**
+   * load all private keys of a gmail identity
+   * @param identity 
+   * @returns 
+   */
+  public async loadPrivateKeyOwnerships(identity: Identity): Promise<PrivateKeyOwnership[]>{
+    let mails = await this.listMails(identity, `label:${this.privateKeyLabelName}`);
+    let privateKeyOwnerships : PrivateKeyOwnership[] = [];
+    for (let mail of mails){
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
-        mimeMessages.push(parsedMimeMessage);
+        let publicKeyOwnershipAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === this.privateKeyAttachmentFileName);
+        for(let attachment of publicKeyOwnershipAttachments){
+          let privateKey = await openpgp.readPrivateKey({ armoredKey: attachment.decodedText() })
+          privateKeyOwnerships.push({identity, messageId: mail.id, privateKey});
+        }
       }
     }
-
-    return mimeMessages;
+    return privateKeyOwnerships;
   }
 
-  public async savePrivateKey(identity: Identity, attachment: AttachmentFile): Promise<void> {     
-    await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
-  }
-
+  /**
+   * save the public key into gmail
+   * @param identity 
+   * @param attachment 
+   * @param sender 
+   * @returns 
+   */
   public async savePublicKey(identity: Identity, attachment: AttachmentFile, sender: string) : Promise<string | void>{
     let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName);
     return message?.id;
@@ -253,7 +291,6 @@ export class GmailApiService {
    */
    public async loadPublicKeyOwnerships(identity: Identity) : Promise<PublicKeyOwnership[]>{
     let mails = await this.listMails(identity, `label:${this.publicKeyLabelName}`);
-
     let publicKeyOwnerships: PublicKeyOwnership[] = [];
     for(let mail of mails){
       let message = await this.getMessage(identity, mail.id);
@@ -271,7 +308,6 @@ export class GmailApiService {
         }
       }
     }
-
     return publicKeyOwnerships;
   }
 
@@ -281,9 +317,10 @@ export class GmailApiService {
    * @param issuer 
    * @returns 
    */
-  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<MessageResult | undefined> {
+  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<string | undefined> {
     let attachment = new AttachmentFile(this.trustworthyIctIssuerAttachmentFileName, issuer, "text/plain", "trustworthy_ict_issuer");
-    return this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName);
+    let message = await this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName);
+    return message?.id;
   }
 
   /**
@@ -291,9 +328,8 @@ export class GmailApiService {
    * @param identity 
    * @returns 
    */
-  public async loadTrustworthyIctIssuer(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
+  public async loadTrustworthyIctIssuers(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
     let mails = await this.listMails(identity, `label:${this.trustworthyIctIssuerLabelName}`);
-
     let trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
     for(let mail of mails){
       let message = await this.getMessage(identity, mail.id);
@@ -309,7 +345,6 @@ export class GmailApiService {
         }
       }
     }
-
     return trustworthyIctIssuers;
   }
 }

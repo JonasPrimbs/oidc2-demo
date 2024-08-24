@@ -1,10 +1,28 @@
-
-<div *ngFor="let key of privateKeys" class="pgp-key">
+<h3>private keys ({{privateKeys.length}})</h3>
+<div *ngFor="let privateKey of privateKeys" class="pgp-key">
   
-  {{ key.keyId }}
+  {{ getKeyId(privateKey.key) }}
+ 
+  <button *ngIf="!privateKey.messageId"
+          (click) ="savePrivateKey(privateKey)" mat-stroked-button>
+    save private key
+  </button>
 
-  <button (click) ="savePrivateKey(key.privateKey)" mat-stroked-button>
-    save private key to gmail
+  <button *ngIf="privateKey.messageId"
+          (click) ="deletePrivateKey(privateKey)" mat-stroked-button>
+    delete private key
+  </button>
+
+</div>
+
+
+<h3>public keys ({{ publicKeyOwnerships.length }})</h3>
+<div *ngFor="let publicKeyOwnership of publicKeyOwnerships" class="pgp-key">
+  
+  {{ publicKeyOwnership.identity.claims.name }} ({{ publicKeyOwnership.identity.claims.email }})
+
+  <button (click) ="removePublicKeyOwnership(publicKeyOwnership)" mat-stroked-button>
+    remove public key
   </button>
 
 </div>

@@ -38,9 +38,6 @@ export class EmailService {
 
   public async readEmail(mailIndex: number, identity: Identity): Promise<MimeMessage|undefined>{
     let messages = await this.gmailApiService.listMails(identity);
-    //todo: delete gmail API accessToken logging
-    console.log(identity.accessToken);
-
     let message = await this.gmailApiService.getMessage(identity, messages[mailIndex].id);
 
     if(message?.raw === undefined){

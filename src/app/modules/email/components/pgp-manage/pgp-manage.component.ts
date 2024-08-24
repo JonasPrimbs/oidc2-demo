@@ -8,6 +8,8 @@ import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { decodeAndParseMimeMessage } from '../../classes/mime-message/mime-message';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
+import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
+import { PrivateKeyRepresentation } from '../../types/private-key-representation.interface';
 
 @Component({
   selector: 'app-pgp-manage',
@@ -22,30 +24,32 @@ export class PgpManageComponent {
    */
   constructor(
     private readonly pgpService: PgpService,
-    private readonly gmail: GmailApiService,
   ) 
-  { 
-    this.pgpService.privateKeysChange.subscribe(() => this.loadKeys());
+  { }
+
+  public get publicKeyOwnerships() {
+    return this.pgpService.publicKeyOwnerships;
   }
 
-  public privateKeys: {keyId: string, privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }}[] = [];
-
-  private loadKeys(){
-    this.privateKeys = [];
-    for(let privateKey of this.pgpService.privateKeys){
-      let temp = { 
-        keyId: this.pgpService.getPrettyKeyID(privateKey.key.getKeyID()),
-        privateKey: privateKey,
-      };
-      this.privateKeys.push(temp);
-    }
+  public get privateKeys(){
+    return this.pgpService.privateKeys;
   }
 
-  public async savePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }){
+  public async savePrivateKey(privateKey: PrivateKeyRepresentation){
     await this.pgpService.savePrivateKey(privateKey);
   }
 
+  public async deletePrivateKey(privateKey: PrivateKeyRepresentation){
+    await this.pgpService.deletePrivateKey(privateKey);
+  }
 
+  public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership){
+    this.pgpService.removePublicKeyOwnership(publicKeyOwnership);
+  }
+
+  public getKeyId(key: openpgp.PublicKey | openpgp.PrivateKey): string{
+    return this.pgpService.getPrettyKeyID(key.getKeyID());
+  }
 }
 
 

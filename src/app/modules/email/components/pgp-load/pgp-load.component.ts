@@ -1,12 +1,10 @@
 import { Component } from '@angular/core';
 
-import * as openpgp from 'openpgp';
-
 import { PgpService } from '../../services/pgp/pgp.service';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
-import { decodeAndParseMimeMessage } from '../../classes/mime-message/mime-message';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
+import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 
 @Component({
   selector: 'app-pgp-load',
@@ -26,14 +24,14 @@ export class PgpLoadComponent {
     private readonly gmailApiService: GmailApiService,
   ) 
   {
-    this.pgpForm.controls.identity.valueChanges.subscribe(x => this.search());   
+    this.identityService.identitiesChanged.subscribe(() => this.relaodPrivateKeys()); 
   }
 
   /**
-   * Gets the available identities.
+   * Gets the available gmail identities.
    */
    public get identities(): Identity[] {
-    return this.identityService.identities;
+    return this.identityService.identities.filter(i => i.hasGoogleIdentityProvider);
   }
 
   // public privateKeys : openpgp.PrivateKey[] = [];
@@ -46,59 +44,38 @@ export class PgpLoadComponent {
     privateKeys: new FormArray<FormGroup<PrivateKeyForm>>([]),
   });
 
-  public async search(){
-    let identity = this.pgpForm.controls.identity.value;
-
-    if(!identity){
-      return
-    }
-
-    let mails = await this.gmailApiService.listMails(identity, `label:${this.gmailApiService.privateKeyLabelName}`);
-    
-    // this.privateKeys = [];
-    for(let mail of mails){
-      try{
-        let message = await this.gmailApiService.getMessage(identity, mail.id);
-        if(!message?.raw){
-          continue;
-        }
-        let mimeMessage = decodeAndParseMimeMessage(message.raw);
-        let privateKeyAttachment = mimeMessage.payload.attachments.find(a => a.name === "private_key.asc");
-        let armoredPrivateKey = privateKeyAttachment?.decodedText();
-        if(!armoredPrivateKey){
-          continue;
-        }
-        let privateKey = await this.pgpService.importPrivateKey(armoredPrivateKey);
-        let keyId = this.pgpService.getPrettyKeyID(privateKey.getKeyID());
+  public async relaodPrivateKeys(){
+    for(let identity of this.identities){
+      let privateKeyOwnerships = await this.gmailApiService.loadPrivateKeyOwnerships(identity);
+      
+      for(let privateKeyOwnership of privateKeyOwnerships){
+        let keyId = this.pgpService.getPrettyKeyID(privateKeyOwnership.privateKey.getKeyID());
+        
         let privateKeyControl = new FormGroup<PrivateKeyForm>({
-          privateKey: new FormControl<openpgp.PrivateKey>(privateKey),
+          privateKeyOwnership: new FormControl<PrivateKeyOwnership>(privateKeyOwnership),
           keyId: new FormControl<string>(keyId),
           passphrase: new FormControl<string>(''),
         });
         
-        this.pgpForm.controls.privateKeys.push(privateKeyControl);
+        this.pgpForm.controls.privateKeys.push(privateKeyControl);  
       }
-      catch{ }      
     }
   }
 
   public async load(i: number){
     let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
     let passphrase = privateKeyForm.controls.passphrase.value;
-    let privateKey = privateKeyForm.controls.privateKey.value;
-    let identity = this.pgpForm.controls.identity.value;
+    let privateKeyOwnership = privateKeyForm.controls.privateKeyOwnership.value;
 
-    if(passphrase && privateKey && identity){
-      this.pgpService.addPrivateKey({key: privateKey, identities: [identity], passphrase});
+    if(passphrase && privateKeyOwnership){
+      this.pgpService.addPrivateKey({key: privateKeyOwnership.privateKey, identities: [privateKeyOwnership.identity], passphrase, messageId: privateKeyOwnership.messageId});
       this.pgpForm.controls.privateKeys.removeAt(i);
     }
   }
-
-  
 }
 
 type PrivateKeyForm = { 
-  privateKey: FormControl<openpgp.PrivateKey | null>,
+  privateKeyOwnership: FormControl<PrivateKeyOwnership | null>,
   keyId: FormControl<string | null>,
   passphrase: FormControl<string | null>,
 };

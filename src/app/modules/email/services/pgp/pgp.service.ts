@@ -11,6 +11,8 @@ import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-veri
 
 import * as openpgp from 'openpgp';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
+import { PrivateKeyRepresentation } from '../../types/private-key-representation.interface';
+import { identity } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -30,11 +32,11 @@ export class PgpService {
   /**
    * Internal represenatation of all private keys.
    */
-  private readonly _privateKeys: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }[] = [];
+  private readonly _privateKeys: PrivateKeyRepresentation[] = [];
   /**
    * Gets a readonly array of all private keys.
    */
-  public get privateKeys(): { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }[] {
+  public get privateKeys(): PrivateKeyRepresentation[] {
     return [ ...this._privateKeys ];
   }
 
@@ -44,7 +46,7 @@ export class PgpService {
    * Adds a PGP private key to privateKeys.
    * @param privateKey PGP Private Key to add.
    */
-  public async addPrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): Promise<void> {
+  public async addPrivateKey(privateKey: PrivateKeyRepresentation): Promise<void> {
     // Add private key to array of private keys.
     this._privateKeys.push(privateKey);
 
@@ -60,24 +62,42 @@ export class PgpService {
    * Saves a private key to gmail.
    * @param privateKey PGP Private Key to save.
    */
-   public async savePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): Promise<void> {
+   public async savePrivateKey(privateKey: PrivateKeyRepresentation): Promise<PrivateKeyRepresentation | undefined> {
     const attachment = new AttachmentFile(this.gmailApiService.privateKeyAttachmentFileName, privateKey.key.armor(), "text/plain");
 
-    // save the private key for all corresponding identities.
+    // save the private key for all corresponding google identities.
     for (const identity of privateKey.identities) {
-      this.gmailApiService.savePrivateKey(identity, attachment);
+      if(identity.hasGoogleIdentityProvider){
+        let messageId = await this.gmailApiService.savePrivateKey(identity, attachment);
+        if(messageId){
+          privateKey.messageId = messageId;
+        }
+      }
     }
+    return undefined;
   }
 
   /**
    * Removes a PGP Private Key from privateKeys.
    * @param privateKey PGP Private Key to remove.
    */
-  public removePrivateKey(privateKey: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }): void {
+  public removePrivateKey(privateKey: PrivateKeyRepresentation): void {
     const index = this._privateKeys.indexOf(privateKey);
     this._privateKeys.splice(index, 1);
-
     this.privateKeysChange.emit();
+  }
+
+  /**
+   * removes a private key and delete it in google 
+   * @param privateKey 
+   */
+  public deletePrivateKey(privateKey: PrivateKeyRepresentation): void {
+    this.removePrivateKey(privateKey);
+    if(privateKey.messageId){
+      for(let identity of privateKey.identities){
+        this.gmailApiService.deleteMesage(identity, privateKey.messageId);
+      }
+    }
   }
 
   // public key ownerships
@@ -110,7 +130,7 @@ export class PgpService {
    * @param publicKeyOwnership 
    */
   public async removePublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership): Promise<void>{
-    const index = this.publicKeyOwnerships.indexOf(publicKeyOwnership);
+    const index = this.publicKeyOwnerships.indexOf(publicKeyOwnership);    
     this._publicKeyOwnerships.splice(index, 1);
     await this.gmailApiService.deleteMesage(publicKeyOwnership.identity, publicKeyOwnership.messageId);
     this.publicKeyOwnershipsChange.emit();
@@ -136,14 +156,14 @@ export class PgpService {
   /**
    * Mapping from an identity instance to its corresponding PGP keys.
    */
-  private readonly _identityPrivateKeys = new Map<Identity, { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }[]>();
+  private readonly _identityPrivateKeys = new Map<Identity, PrivateKeyRepresentation[]>();
 
   /**
    * Adds a PGP private key for an identity.
    * @param identity Identity.
    * @param key PGP Private Key.
    */
-  public addKeyFor(identity: Identity, key: { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }) {
+  public addKeyFor(identity: Identity, key: PrivateKeyRepresentation) {
     const keys = this._identityPrivateKeys.get(identity);
     if (keys) {
       keys.push(key);
@@ -157,7 +177,7 @@ export class PgpService {
    * @param identity Identity to get keys for.
    * @returns The PGP Key for the requested identity.
    */
-  public getKeysFor(identity: Identity): { key: openpgp.PrivateKey, identities: Identity[], passphrase: string }[] {
+  public getKeysFor(identity: Identity): PrivateKeyRepresentation[] {
     return this._identityPrivateKeys.get(identity) ?? [];
   }
 
@@ -187,7 +207,7 @@ export class PgpService {
 
   /**
    * Imports a PGP private key.
-   * @param armoredPrivateKey Armored ürivate key to import.
+   * @param armoredPrivateKey Armored private key to import.
    * @returns Imported PGP private key.
    */
   public async importPrivateKey(armoredPrivateKey: string): Promise<openpgp.PrivateKey> {
@@ -324,6 +344,13 @@ export class PgpService {
     return result;
   }
 
+  /**
+   * validates openpgp signature verification results against oidc2 identity verification results
+   * @param signatures 
+   * @param oidc2VerificationResults 
+   * @param publicKey 
+   * @returns 
+   */
   private async verifyPgpSignatures(signatures: openpgp.VerificationResult[], oidc2VerificationResults: Oidc2IdentityVerificationResult[], publicKey: openpgp.PublicKey): Promise<SignatureVerificationResult[]>{  
     let signatureVerificationResults: SignatureVerificationResult[] = [];
     for(let result of signatures){
@@ -374,6 +401,11 @@ export class PgpService {
     return signatureVerificationResults;
   }
 
+  /**
+   * pretty-print the PGP-KeyID
+   * @param keyID 
+   * @returns 
+   */
   public getPrettyKeyID(keyID: openpgp.KeyID): string{
     return '0x' + keyID.toHex().toUpperCase();
   }

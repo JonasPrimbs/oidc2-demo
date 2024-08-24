@@ -38,7 +38,7 @@ export class Oidc2VerificationService {
     let newTrustworthyIssuers: TrustworthyIctIssuer[] = [];
     for(let identity of this.identityService.identities){
       if(identity.hasGoogleIdentityProvider){
-        let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuer(identity)
+        let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity)
         newTrustworthyIssuers.push(...newIssuers); 
       }
     }
@@ -59,13 +59,13 @@ export class Oidc2VerificationService {
     }
 
   private async getTrustworthyIssuers(identity: Identity): Promise<TrustworthyIctIssuer[]>{
-    return this.gmailApiService.loadTrustworthyIctIssuer(identity);
+    return this.gmailApiService.loadTrustworthyIctIssuers(identity);
   }
 
   public async trustIssuer(identity: Identity, issuer: string){
-    let message = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer);
-    if(message){
-      this._trustworthyIssuers.push({identity, issuer, messageId: message?.id});
+    let messageId = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer);
+    if(messageId){
+      this._trustworthyIssuers.push({identity, issuer, messageId});
       this.trustworthyIssuersChanged.emit();
     }
   }

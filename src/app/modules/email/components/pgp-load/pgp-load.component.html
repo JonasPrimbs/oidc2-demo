@@ -1,14 +1,14 @@
 <!-- PGP Key Form -->
 <form class="pgp-load" [formGroup]="pgpForm">
   <!-- Identities Input -->
-  <mat-form-field>
+  <!-- <mat-form-field>
     <mat-label>Identity</mat-label>
     <mat-select matNativeControl autofocus formControlName="identity" required>
       <mat-option *ngFor="let identity of identities" [value]="identity">
         {{ identity.claims.name }} ({{ identity.claims.email }});
       </mat-option>
     </mat-select>
-  </mat-form-field>
+  </mat-form-field> -->
 
   <ng-container 
     formArrayName="privateKeys"

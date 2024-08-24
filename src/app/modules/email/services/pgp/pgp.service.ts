@@ -22,7 +22,7 @@ export class PgpService {
     private readonly oidc2VerificationService: Oidc2VerificationService,
     private readonly identityService: IdentityService,
   ) { 
-    this.identityService.identitiesChange.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
+    this.identityService.identitiesChanged.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
   }
 
   // Key Management:

@@ -4,8 +4,10 @@ import { Identity, IdentityService } from 'src/app/modules/authentication';
 
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { EmailService } from '../../services/email/email.service';
+import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
+import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
 
 @Component({
   selector: 'app-email-view',
@@ -15,7 +17,9 @@ import { MimeMessageSecurityResult } from '../../types/mime-message-security-res
 export class EmailViewComponent {
 
   private mailIndex: number = 0;
-  public mimeMessage: MimeMessage | undefined;  
+
+  public mimeMessage: MimeMessage | undefined;
+  public originMimeMessage: MimeMessage | undefined;
   public mimeMessageSecurity : MimeMessageSecurityResult | undefined;
   public showSecurityInfo : boolean = false;
 
@@ -27,9 +31,11 @@ export class EmailViewComponent {
     private readonly emailService: EmailService,
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
+    private readonly oidc2VerificationService: Oidc2VerificationService,
   )
   { 
-    this.identityService.identitiesChange.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
+    this.identityService.identitiesChanged.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
+    this.oidc2VerificationService.trustworthyIssuersChanged.subscribe(() => this.evaluateMimeMessageSecurity());
   } 
 
   /**
@@ -46,57 +52,98 @@ export class EmailViewComponent {
     identity: new FormControl<Identity | undefined>(undefined),
   });
   
+  /**
+   * load the mail with the current mail-index
+   * @returns 
+   */
+  public async loadMail() : Promise<void>{
+    if(!this.selectedIdentity.controls.identity.value){
+      return;
+    }
+    this.showSecurityInfo = false; 
+    this.mimeMessageSecurity = undefined;
+    this.originMimeMessage = await this.emailService.readEmail(this.mailIndex, this.selectedIdentity.controls.identity.value);
+    this.mimeMessage = this.originMimeMessage;
+    this.evaluateMimeMessageSecurity();
+  }
 
+  /**
+   * evaluates the mime message security for the current selected originMimeMessage
+   */
+  public async evaluateMimeMessageSecurity(): Promise<void> {
+    if(this.originMimeMessage && this.selectedIdentity.controls.identity.value){
+      this.mimeMessageSecurity = await this.pgpService.checkMimeMessageSecurity(this.originMimeMessage, this.selectedIdentity.controls.identity.value);
+      this.mimeMessage = this.mimeMessageSecurity.clearetextMimeMessage;
+    }
+  }
+  
+  /**
+   * move to the next mail
+   */
+  public async next(): Promise<void>{
+    this.mailIndex--;
+    await this.loadMail();
+  }   
 
-    public async loadMail() : Promise<void>{
-      if(!this.selectedIdentity.controls.identity.value){
-        return;
-      }
+  /**
+   * move to the previous mail
+   */
+  public async previous(): Promise<void>{
+    this.mailIndex++;
+    await this.loadMail();
+  }   
 
-      this.showSecurityInfo = false; 
-      this.mimeMessageSecurity = undefined;
-      this.mimeMessage = await this.emailService.readEmail(this.mailIndex, this.selectedIdentity.controls.identity.value);
+  /**
+   * toggle the security info 
+   */
+  public toggleSecurityInfo(){
+    this.showSecurityInfo = !this.showSecurityInfo;
+  }
 
-      if(this.mimeMessage){
-        this.mimeMessageSecurity = await this.pgpService.checkMimeMessageSecurity(this.mimeMessage, this.selectedIdentity.controls.identity.value);
-        this.mimeMessage = this.mimeMessageSecurity.clearetextMimeMessage;
+  /**
+   * determines wether all signatures or a security result are valid
+   * @param securityResult 
+   * @returns 
+   */
+  public allSignaturesValid(securityResult: MimeMessageSecurityResult) : boolean{
+    for(let signature of securityResult.signatureVerificationResults){
+      if(!signature.oidc2Identity || !signature.signatureVerified){
+        return false;
       }
     }
-    
-    public async next(): Promise<void>{
-      this.mailIndex--;
-      await this.loadMail();
-    }   
-
-    public async previous(): Promise<void>{
-      this.mailIndex++;
-      await this.loadMail();
-    }   
-
-    public toggleSecurityInfo(){
-      this.showSecurityInfo = !this.showSecurityInfo;
-    }
-
-    public allSignaturesValid(securityResult: MimeMessageSecurityResult) : boolean{
-      for(let signature of securityResult.signatureVerificationResults){
-        if(!signature.oidc2Identity || !signature.signatureVerified){
-          return false;
-        }
-      }
-      return true;
-    }
+    return true;
+  }
 
   public get disabledSaveTrustfullPublicKey (){
     return !this.selectedIdentity.controls.identity.value || !this.mimeMessageSecurity || !this.mimeMessageSecurity.publicKey || !this.allSignaturesValid(this.mimeMessageSecurity);
   } 
 
   /**
-   * save the public key as trustfull public key
+   * save the public key as trustful public key
    */
-  public saveTrustfullPublicKey(){
+  public saveTrustfulPublicKey(){
     let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
     if(!this.disabledSaveTrustfullPublicKey && senderMail){
       this.pgpService.savePublicKeyOwnership(this.selectedIdentity.controls.identity.value!, this.mimeMessageSecurity?.publicKey!, senderMail!);
+    }
+  }
+
+  /**
+   * determines wether it is possible to trust the issuer of the ICT 
+   * @param oidc2VerificationResult 
+   * @returns 
+   */
+  public canTrustIctIssuer(oidc2VerificationResult: Oidc2IdentityVerificationResult): boolean{
+    return this.selectedIdentity.controls.identity.value !== undefined && oidc2VerificationResult.identity?.issuer !== undefined;
+  }
+
+  /**
+   * trust the issuer of the ICT
+   * @param oidc2VerificationResult 
+   */
+  public trustIctIssuer(oidc2VerificationResult: Oidc2IdentityVerificationResult){
+    if(this.canTrustIctIssuer(oidc2VerificationResult)){
+      this.oidc2VerificationService.trustIssuer(this.selectedIdentity.controls.identity.value!, oidc2VerificationResult.identity?.issuer!);
     }
   }
 

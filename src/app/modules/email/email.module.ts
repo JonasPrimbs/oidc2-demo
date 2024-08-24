@@ -4,7 +4,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import {MatCheckboxModule} from '@angular/material/checkbox';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,7 +20,7 @@ import { EmailViewComponent } from './components/email-view/email-view.component
 import { PgpImportComponent } from './components/pgp-import/pgp-import.component';
 import { PgpLoadComponent } from './components/pgp-load/pgp-load.component';
 import { PgpManageComponent } from './components/pgp-manage/pgp-manage.component';
-import { TrustworthyIctIssueManageComponent } from './components/trustworthy-ict-issuer-manage/trustworthy-ict-issue-manage.component';
+import { TrustworthyIctIssueManageComponent } from './components/trustworthy-ict-issuer-manage/trustworthy-ict-issuer-manage.component';
 import { EmailComponent } from './pages/email/email.component';
 import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';

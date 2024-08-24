@@ -19,7 +19,7 @@ import { E2ePopPgpClaims } from '../../types/e2e-pop-pgp-claims.interface';
 })
 export class IdentityService {
   
-  public readonly identitiesChange = new EventEmitter<void>();
+  public readonly identitiesChanged = new EventEmitter<void>();
 
   /**
    * Internal array of identities.
@@ -259,11 +259,11 @@ export class IdentityService {
     firstValueFrom(identity.onLogout).then(() => {
       const index = this._identities.indexOf(identity);
       this._identities.splice(index, 1);
-      this.identitiesChange.emit();
+      this.identitiesChanged.emit();
     });
     // Add the identity to the array of identities.
     this._identities.push(identity);
-    this.identitiesChange.emit();
+    this.identitiesChanged.emit();
 
     return identity;
   }

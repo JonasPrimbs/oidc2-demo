@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TrustworthyIctIssueManageComponent } from './trustworthy-ict-issue-manage.component';
+import { TrustworthyIctIssueManageComponent } from './trustworthy-ict-issuer-manage.component';
 
 describe('TrustworthyIctIssueManageComponent', () => {
   let component: TrustworthyIctIssueManageComponent;

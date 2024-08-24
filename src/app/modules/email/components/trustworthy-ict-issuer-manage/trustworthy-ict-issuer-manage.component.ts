@@ -10,9 +10,9 @@ import { _MatListItemGraphicBase } from '@angular/material/list';
 import { TrustworthyIctIssuer } from '../../types/trustworthy-ict-issuer';
 
 @Component({
-  selector: 'app-trustworthy-ict-issue-manage',
-  templateUrl: './trustworthy-ict-issue-manage.component.html',
-  styleUrls: ['./trustworthy-ict-issue-manage.component.scss'],
+  selector: 'app-trustworthy-ict-issuer-manage',
+  templateUrl: './trustworthy-ict-issuer-manage.component.html',
+  styleUrls: ['./trustworthy-ict-issuer-manage.component.scss'],
 })
 export class TrustworthyIctIssueManageComponent {
   
@@ -53,7 +53,7 @@ export class TrustworthyIctIssueManageComponent {
   /**
    * displayed columns of the trustworthy ict issuers table
    */
-  public displayedColumns: string[] = ['issuer', 'identity', 'delete'];
+  public displayedColumns: string[] = ['identity', 'issuer', 'delete'];
 
   
   /**

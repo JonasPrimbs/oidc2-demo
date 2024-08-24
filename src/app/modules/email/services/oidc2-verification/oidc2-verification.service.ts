@@ -31,7 +31,7 @@ export class Oidc2VerificationService {
     private readonly gmailApiService: GmailApiService,
     private readonly identityService: IdentityService,
   ){
-    this.identityService.identitiesChange.subscribe(() => this.onIdentitiesChanged());
+    this.identityService.identitiesChanged.subscribe(() => this.onIdentitiesChanged());
   }
 
   private async onIdentitiesChanged(){

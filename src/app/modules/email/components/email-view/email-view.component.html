@@ -19,7 +19,7 @@
   previous
 </button>
 
-<button (click)="saveTrustfullPublicKey()" mat-stroked-button [disabled]="disabledSaveTrustfullPublicKey">
+<button (click)="saveTrustfulPublicKey()" mat-stroked-button [disabled]="disabledSaveTrustfullPublicKey">
   save public key
 </button>
 
@@ -148,7 +148,11 @@
 
             <!--issuer of ICT-->
             <span *ngIf="oidc2VerificationResult.identity.issuer">
-              ICT-issuer: {{ oidc2VerificationResult.identity.issuer }} <br/>
+              ICT-issuer: {{ oidc2VerificationResult.identity.issuer }} 
+              <button (click)="trustIctIssuer(oidc2VerificationResult)" [disabled]="!canTrustIctIssuer(oidc2VerificationResult)" mat-stroked-button>
+                trust issuer
+              </button>
+              <br/>
             </span>
 
             <!--preferred username of identity-->

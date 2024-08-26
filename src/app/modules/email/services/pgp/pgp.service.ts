@@ -327,6 +327,7 @@ export class PgpService {
    */
   private async verifyPgpSignatures(signatures: openpgp.VerificationResult[], oidc2VerificationResults: Oidc2IdentityVerificationResult[], publicKey: openpgp.PublicKey): Promise<SignatureVerificationResult[]>{  
     let signatureVerificationResults: SignatureVerificationResult[] = [];
+    let publicKeyOnKeyserver = await this.searchPublicKeyOnKeyServer(publicKey.getFingerprint());
     for(let result of signatures){
       let signatureKeyId = this.getPrettyKeyID(result.keyID); 
       let keyFingerprint = publicKey.getFingerprint(); 
@@ -338,7 +339,16 @@ export class PgpService {
         // find oidc2 result with matching pgp-fingerprint
         let matchingOidc2Result = oidc2VerificationResults.find(r => r.ictVerified && r.popVerified && r.identity && r.identity.pgpFingerprint && r.identity.pgpFingerprint.toLowerCase() === keyFingerprint.toLowerCase());
 
-        if(matchingOidc2Result){
+        if(publicKeyOnKeyserver && await publicKeyOnKeyserver.isRevoked()){
+          signatureVerificationResults.push({
+            signatureVerified: false,
+            signatureErrorMessage: 'key is revoked',
+            oidc2Identity: undefined,
+            keyId: signatureKeyId,
+            signedAt: undefined
+          });          
+        }
+        else if(matchingOidc2Result){
           // signature verification successful and oidc2 chain verification successful
           signatureVerificationResults.push({
             signatureVerified: true,
@@ -365,9 +375,13 @@ export class PgpService {
       }
       catch(ex){
         // signature verification failed
+        let errorMessage = 'invalid signature';
+        if(ex instanceof Error){
+          errorMessage = ex.message;
+        }
         signatureVerificationResults.push({
           signatureVerified: false,
-          signatureErrorMessage: 'invalid signature'
+          signatureErrorMessage: errorMessage,
         });
       }
     }
@@ -410,6 +424,23 @@ export class PgpService {
       encryptionKeys.push(owner.key);
     }
     return encryptionKeys;
+  }
+
+  /**
+   * find the public key on the keyserver. Do not use this for signature verification etc. often these keys doesn't have identity information and therfore the signature verification fails.
+   * Only use to check wether the key is revoked.
+   * @param fingerprint 
+   * @returns 
+   */
+  public async searchPublicKeyOnKeyServer(fingerprint: string): Promise<openpgp.PublicKey|undefined>{
+    var result = await fetch(`https://keys.openpgp.org/vks/v1/by-fingerprint/${fingerprint.toUpperCase()}`);
+    var armoredKey = await result.text();
+    try{
+      let key = await this.importPublicKey(armoredKey);
+      return key;
+    }
+    catch(err){ }
+    return undefined;
   }
 }
 

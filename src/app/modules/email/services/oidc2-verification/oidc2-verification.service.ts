@@ -92,8 +92,7 @@ export class Oidc2VerificationService {
       return [];
     }
     let ictContent =  ictAttachment.decodedText();
-    ictContent = ictContent.substring(ictContent.indexOf(this.beginIct) + this.beginIct.length, ictContent.indexOf(this.endIct)).trim();
-    let icts = ictContent.split('\r\n');
+    let icts = this.getTokens(ictContent, this.beginIct, this.endIct);
 
     // extract pops
     let popAttachment = mimeMessage.payload.attachments.find(a => a.isE2EPoPToken());
@@ -101,8 +100,7 @@ export class Oidc2VerificationService {
       return [];
     }
     let popContent = popAttachment?.decodedText();
-    popContent = popContent?.substring(popContent.indexOf(this.beginE2EPoPToken) + this.beginE2EPoPToken.length, popContent.indexOf(this.endE2EPoPToken)).trim();
-    let pops = popContent?.split('\r\n');
+    let pops = this.getTokens(popContent, this.beginE2EPoPToken, this.endE2EPoPToken);
 
     // create ict/pop pairs
     let ictPops : {ict: string, pop: string} [] = [];
@@ -111,6 +109,24 @@ export class Oidc2VerificationService {
     }
 
     return ictPops;
+  }
+
+  /**
+   * extracts ict/pop tokens out of a file
+   * @param tokenFileContent 
+   * @param start 
+   * @param end 
+   * @returns 
+   */
+  private getTokens(tokenFileContent: string, start: string, end: string): string[]{
+    let tokens: string[] = [];
+    while(tokenFileContent.includes(start) && tokenFileContent.includes(end)){
+      let startindex = tokenFileContent.indexOf(start) + start.length;
+      let endindex = tokenFileContent.indexOf(end);
+      tokens.push(tokenFileContent.substring(startindex, endindex).trim());
+      tokenFileContent = tokenFileContent.substring(endindex + end.length);
+    }
+    return tokens;
   }
 
   /**

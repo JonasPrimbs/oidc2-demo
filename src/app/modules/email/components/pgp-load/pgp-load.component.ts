@@ -25,6 +25,7 @@ export class PgpLoadComponent {
   ) 
   {
     this.identityService.identitiesChanged.subscribe(() => this.relaodPrivateKeys()); 
+    this.relaodPrivateKeys();
   }
 
   /**
@@ -34,15 +35,16 @@ export class PgpLoadComponent {
     return this.identityService.identities.filter(i => i.hasGoogleIdentityProvider);
   }
 
-  // public privateKeys : openpgp.PrivateKey[] = [];
-
   /**
-     * Form Group to import PGP Key File.
-     */
+   * Form Group to import PGP Key File.
+   */
   public readonly pgpForm = new FormGroup({
-    identity: new FormControl<Identity | undefined>(undefined),
     privateKeys: new FormArray<FormGroup<PrivateKeyForm>>([]),
   });
+
+  public get privateKeys(): FormArray<FormGroup<PrivateKeyForm>>{
+    return this.pgpForm.controls.privateKeys;
+  }
 
   /**
    * reload the online (gmail) private keys
@@ -55,13 +57,14 @@ export class PgpLoadComponent {
         let keyId = this.pgpService.getPrettyKeyID(privateKey.privateKey.getKeyID());
         
         let privateKeyControl = new FormGroup<PrivateKeyForm>({
-          privateKeyOwnership: new FormControl<OnlinePrivateKey>(privateKey),
+          key: new FormControl<OnlinePrivateKey>(privateKey),
           keyId: new FormControl<string>(keyId),
           passphrase: new FormControl<string>(''),
         });
         
         this.pgpForm.controls.privateKeys.push(privateKeyControl);  
       }
+      
     }
   }
 
@@ -72,17 +75,28 @@ export class PgpLoadComponent {
   public async import(i: number){
     let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
     let passphrase = privateKeyForm.controls.passphrase.value;
-    let privateKeyOwnership = privateKeyForm.controls.privateKeyOwnership.value;
+    let onlinePrivateKey = privateKeyForm.controls.key.value;
 
-    if(passphrase && privateKeyOwnership){
-      this.pgpService.addPrivateKey({key: privateKeyOwnership.privateKey, identity: privateKeyOwnership.identity, passphrase, messageId: privateKeyOwnership.messageId});
+    if(passphrase && onlinePrivateKey){
+      this.pgpService.addPrivateKey({key: onlinePrivateKey.privateKey, identity: onlinePrivateKey.identity, passphrase, messageId: onlinePrivateKey.messageId});
       this.pgpForm.controls.privateKeys.removeAt(i);
     }
   }
+
+  public async delete(i: number){
+    let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
+    let onlinePrivateKey = privateKeyForm.controls.key.value;
+
+    if(onlinePrivateKey){
+      this.gmailApiService.deleteMesage(onlinePrivateKey.identity, onlinePrivateKey.messageId);
+    }
+  }
+
+  public displayedColumns = ['identity', 'key', 'passphrase', 'import', 'delete'];
 }
 
 type PrivateKeyForm = { 
-  privateKeyOwnership: FormControl<OnlinePrivateKey | null>,
+  key: FormControl<OnlinePrivateKey | null>,
   keyId: FormControl<string | null>,
   passphrase: FormControl<string | null>,
 };

@@ -2,6 +2,7 @@
 <form class="pgp-load" [formGroup]="pgpForm">
   <ng-container formArrayName="privateKeys">
 
+    <h3>Available private keys to import from gmail ({{privateKeys.length}})</h3>
     <table mat-table [dataSource]="privateKeys.controls" class="public-key-ownership-table">
   
       <ng-container matColumnDef="identity">
@@ -16,8 +17,8 @@
 
       <ng-container matColumnDef="passphrase">
         <th mat-header-cell *matHeaderCellDef> passphrase </th>
-        <mat-cell *matCellDef="let element" [formGroup]="element">
-          <mat-form-field>
+        <mat-cell *matCellDef="let element" [formGroup]="element" class="mat-cell-passphrase">
+          <mat-form-field class="mat-form-field-passphrase">
             <input matInput placeholder="Passphrase*" formControlName="passphrase" type="password">
           </mat-form-field>
         </mat-cell>

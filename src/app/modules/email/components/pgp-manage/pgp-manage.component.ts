@@ -53,7 +53,7 @@ export class PgpManageComponent {
   /**
    * displayed columns of the public key table
    */
-  public displayedPublicKeyColumns: string[] = ['pubIdentity', 'pubOwner', 'pubKey', 'pubDelete'];
+  public displayedPublicKeyColumns: string[] = ['pubIdentity', 'pubKey', 'pubOwner', 'pubDelete'];
 
   /**
    * public keys

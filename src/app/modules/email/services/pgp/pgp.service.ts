@@ -38,7 +38,7 @@ export class PgpService {
     return [ ...this._privateKeys ];
   }
 
-  public readonly privateKeysChange = new EventEmitter<void>();
+  public readonly privateKeysChanged = new EventEmitter<void>();
 
   /**
    * Adds a PGP private key to privateKeys.
@@ -47,7 +47,7 @@ export class PgpService {
   public async addPrivateKey(privateKey: PrivateKeyOwnership): Promise<void> {
     // Add private key to array of private keys.
     this._privateKeys.push(privateKey);
-    this.privateKeysChange.emit();
+    this.privateKeysChanged.emit();
   }
 
   /**
@@ -72,7 +72,7 @@ export class PgpService {
   public removeLocalPrivateKey(privateKey: PrivateKeyOwnership): void {
     const index = this._privateKeys.indexOf(privateKey);
     this._privateKeys.splice(index, 1);
-    this.privateKeysChange.emit();
+    this.privateKeysChanged.emit();
   }
 
   /**

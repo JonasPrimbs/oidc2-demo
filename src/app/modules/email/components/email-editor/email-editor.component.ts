@@ -120,7 +120,7 @@ export class EmailEditorComponent implements OnInit {
    * Initializes the component.
    */
   ngOnInit(): void {
-    this.pgpService.privateKeysChange.subscribe(() => {
+    this.pgpService.privateKeysChanged.subscribe(() => {
       this.updateAvailableKeys();
     });
     this.emailForm.controls.from.valueChanges.subscribe(() => {

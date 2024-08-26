@@ -36,6 +36,8 @@ export class EmailViewComponent {
   { 
     this.identityService.identitiesChanged.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
     this.oidc2VerificationService.trustworthyIssuersChanged.subscribe(() => this.evaluateMimeMessageSecurity());
+    this.pgpService.privateKeysChanged.subscribe(() => this.evaluateMimeMessageSecurity());
+    this.selectedIdentity.controls.identity.valueChanges.subscribe(() => this.onUserChanges());
   } 
 
   /**
@@ -75,6 +77,14 @@ export class EmailViewComponent {
       this.mimeMessageSecurity = await this.pgpService.checkMimeMessageSecurity(this.originMimeMessage, this.selectedIdentity.controls.identity.value);
       this.mimeMessage = this.mimeMessageSecurity.clearetextMimeMessage;
     }
+  }
+
+  /**
+   * on user changes: load first mail in inbox
+   */
+  public async onUserChanges(){
+    this.mailIndex = 0;
+    await this.loadMail();
   }
   
   /**

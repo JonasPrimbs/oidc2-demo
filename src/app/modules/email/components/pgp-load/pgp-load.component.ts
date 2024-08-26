@@ -93,6 +93,9 @@ export class PgpLoadComponent {
     if(passphrase && privateKey){
       this.pgpService.addPrivateKey({key: privateKey.privateKey, identity: privateKey.identity, passphrase, messageId: privateKey.messageId});
       this.pgpForm.controls.privateKeys.removeAt(i);
+      if(this.table){
+        this.table.renderRows();
+      }
     }
   }
 
@@ -107,6 +110,9 @@ export class PgpLoadComponent {
     if(privateKey){
       this.gmailApiService.deleteMesage(privateKey.identity, privateKey.messageId);
       this.pgpForm.controls.privateKeys.removeAt(i);
+      if(this.table){
+        this.table.renderRows();
+      }
     }
   }
 

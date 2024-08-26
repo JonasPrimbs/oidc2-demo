@@ -1,10 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 
 import { PgpService } from '../../services/pgp/pgp.service';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
+import { MatTable } from '@angular/material/table';
 
 @Component({
   selector: 'app-pgp-load',
@@ -29,6 +30,12 @@ export class PgpLoadComponent {
   }
 
   /**
+   * the table of the private keys stored in gmail (for updating rows)
+   */
+  @ViewChild(MatTable) 
+  public table?: MatTable<any>;
+
+  /**
    * Gets the available gmail identities.
    */
    public get identities(): Identity[] {
@@ -42,9 +49,12 @@ export class PgpLoadComponent {
     privateKeys: new FormArray<FormGroup<PrivateKeyForm>>([]),
   });
 
+  /**
+   * private keys stored in gmail
+   */
   public get privateKeys(): FormArray<FormGroup<PrivateKeyForm>>{
     return this.pgpForm.controls.privateKeys;
-  }
+  } 
 
   /**
    * reload the online (gmail) private keys
@@ -66,6 +76,9 @@ export class PgpLoadComponent {
       }
       
     }
+    if(this.table){
+      this.table.renderRows();
+    }
   }
 
   /**
@@ -75,20 +88,25 @@ export class PgpLoadComponent {
   public async import(i: number){
     let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
     let passphrase = privateKeyForm.controls.passphrase.value;
-    let onlinePrivateKey = privateKeyForm.controls.key.value;
+    let privateKey = privateKeyForm.controls.key.value;
 
-    if(passphrase && onlinePrivateKey){
-      this.pgpService.addPrivateKey({key: onlinePrivateKey.privateKey, identity: onlinePrivateKey.identity, passphrase, messageId: onlinePrivateKey.messageId});
+    if(passphrase && privateKey){
+      this.pgpService.addPrivateKey({key: privateKey.privateKey, identity: privateKey.identity, passphrase, messageId: privateKey.messageId});
       this.pgpForm.controls.privateKeys.removeAt(i);
     }
   }
 
+  /**
+   * delete an online private key in gmail
+   * @param i 
+   */
   public async delete(i: number){
     let privateKeyForm = this.pgpForm.controls.privateKeys.at(i);
-    let onlinePrivateKey = privateKeyForm.controls.key.value;
+    let privateKey = privateKeyForm.controls.key.value;
 
-    if(onlinePrivateKey){
-      this.gmailApiService.deleteMesage(onlinePrivateKey.identity, onlinePrivateKey.messageId);
+    if(privateKey){
+      this.gmailApiService.deleteMesage(privateKey.identity, privateKey.messageId);
+      this.pgpForm.controls.privateKeys.removeAt(i);
     }
   }
 

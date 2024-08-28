@@ -143,9 +143,9 @@ export class GmailApiService {
    * @param query 
    * @returns 
    */
-  public async listMails(identity: Identity, query = "in:inbox"): Promise<ListMailResult[]>{
+  public async listMails(identity: Identity, query = "in:inbox"): Promise<ListMailResult|undefined>{
     try{
-      var result = await firstValueFrom(this.http.get<{messages: ListMailResult[]|undefined}>(
+      var result = await firstValueFrom(this.http.get<ListMailResult|undefined>(
         `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages?q=${query}`,
         {
           headers: {
@@ -154,13 +154,10 @@ export class GmailApiService {
           },
         },
       ));
-      if(result.messages){
-        return result.messages;
-      }
-      return [];
+      return result
     }
     catch(err){
-      return [];
+      return undefined;
     }    
   }
 
@@ -257,9 +254,12 @@ export class GmailApiService {
    * @returns 
    */
   public async loadPrivateKeys(identity: Identity): Promise<OnlinePrivateKey[]>{
-    let mails = await this.listMails(identity, `label:${this.privateKeyLabelName}`);
+    let listMailResult = await this.listMails(identity, `label:${this.privateKeyLabelName}`);
     let privateKeys : OnlinePrivateKey[] = [];
-    for (let mail of mails){
+    if(!listMailResult){
+      return [];
+    }
+    for (let mail of listMailResult.messages){
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
@@ -292,9 +292,12 @@ export class GmailApiService {
    * @returns 
    */
    public async loadPublicKeyOwnerships(identity: Identity) : Promise<PublicKeyOwnership[]>{
-    let mails = await this.listMails(identity, `label:${this.publicKeyLabelName}`);
+    let listMailsResult = await this.listMails(identity, `label:${this.publicKeyLabelName}`);
     let publicKeyOwnerships: PublicKeyOwnership[] = [];
-    for(let mail of mails){
+    if(!listMailsResult){
+      return [];
+    }
+    for(let mail of listMailsResult.messages){
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
@@ -331,9 +334,12 @@ export class GmailApiService {
    * @returns 
    */
   public async loadTrustworthyIctIssuers(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
-    let mails = await this.listMails(identity, `label:${this.trustworthyIctIssuerLabelName}`);
+    let listMailsResult = await this.listMails(identity, `label:${this.trustworthyIctIssuerLabelName}`);
     let trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
-    for(let mail of mails){
+    if(!listMailsResult){
+      return [];
+    }
+    for(let mail of listMailsResult.messages){
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
@@ -352,8 +358,9 @@ export class GmailApiService {
 }
 
 export interface ListMailResult{
-  readonly id: string;
-  readonly threadId: string;
+  readonly messages: MessageResult[];
+  readonly nextPageToken: string,
+  readonly resultSizeEstimate: number,
 }
 
 export interface LabelResult{
@@ -366,7 +373,11 @@ export interface LabelResult{
 
 export interface MessageResult{ 
   readonly id: string;
+  readonly snippet?: string,
+  readonly historyId?: string,
+  readonly internalDate?: string,
   readonly threadid?: string;
   readonly labelIds?: string[];
+  readonly sizeEstimate?: number,
   readonly raw?: string;
 }

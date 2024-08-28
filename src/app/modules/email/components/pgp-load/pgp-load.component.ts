@@ -25,8 +25,8 @@ export class PgpLoadComponent {
     private readonly gmailApiService: GmailApiService,
   ) 
   {
-    this.identityService.identitiesChanged.subscribe(() => this.relaodPrivateKeys()); 
-    this.relaodPrivateKeys();
+    this.identityService.identitiesChanged.subscribe(() => this.relaodOnlinePrivateKeys()); 
+    this.relaodOnlinePrivateKeys();
   }
 
   /**
@@ -59,7 +59,8 @@ export class PgpLoadComponent {
   /**
    * reload the online (gmail) private keys
    */
-  public async relaodPrivateKeys(){
+  public async relaodOnlinePrivateKeys(){
+    this.pgpForm.controls.privateKeys.clear();
     for(let identity of this.identities){
       let privateKeys = await this.gmailApiService.loadPrivateKeys(identity);
       
@@ -116,6 +117,9 @@ export class PgpLoadComponent {
     }
   }
 
+  /**
+   * the displayed columns
+   */
   public displayedColumns = ['identity', 'key', 'passphrase', 'import', 'delete'];
 }
 

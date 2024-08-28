@@ -48,7 +48,7 @@ export class EmailEditorComponent implements OnInit {
       return {
         key: key.key,
         passphrase: key.passphrase,
-        name: `${key.identity.claims.name} (${key.identity.identityProvider.name})`,
+        name: `${key.identity.claims.name} (${key.identity.identityProvider.name}) - ${this.pgpService.getPrettyKeyID(key.key.getKeyID())}`,
       };
     });
   }

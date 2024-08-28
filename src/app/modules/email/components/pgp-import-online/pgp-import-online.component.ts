@@ -8,11 +8,11 @@ import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { MatTable } from '@angular/material/table';
 
 @Component({
-  selector: 'app-pgp-load',
-  templateUrl: './pgp-load.component.html',
-  styleUrls: ['./pgp-load.component.scss'],
+  selector: 'app-pgp-import-online',
+  templateUrl: './pgp-import-online.component.html',
+  styleUrls: ['./pgp-import-online.component.scss'],
 })
-export class PgpLoadComponent {
+export class PgpImportOnlineComponent {
   
   /**
    * Constructs a new PGP Load Component.

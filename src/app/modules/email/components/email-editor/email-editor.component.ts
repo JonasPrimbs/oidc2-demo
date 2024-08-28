@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormControl, FormGroup } from '@angular/forms';
 import * as jose from 'jose';
 import * as openpgp from 'openpgp';
@@ -15,6 +16,7 @@ import { E2ePopPgpOptions } from '../../types/e2e-pop-pgp-options.interface';
   selector: 'app-email-editor',
   templateUrl: './email-editor.component.html',
   styleUrls: ['./email-editor.component.scss'],
+  // imports: [MatBottomSheetModule],
 })
 export class EmailEditorComponent implements OnInit {
   /**
@@ -238,11 +240,17 @@ export class EmailEditorComponent implements OnInit {
    */
   public async sendEmail(): Promise<void> {
     const privateKey = await this.getPrivateKey();
-    if(!privateKey) return;
+    if(!privateKey) {
+      this.openSnackBar('you need a private key');
+      return;
+    }
 
     // Get the email instance to send.
     const email = this.getEmail();
-    if (!email) return;
+    if (!email) {
+      this.openSnackBar('email could not be assembled');
+      return;
+    }
 
     // Generate new key pair.
     const keyPair = await crypto.subtle.generateKey(
@@ -278,7 +286,8 @@ export class EmailEditorComponent implements OnInit {
     }
     
     // Send the email instance.
-    await this.emailService.sendEmail(email, privateKey.key, privateKey.passphrase, this.emailForm.controls.encryption.value ?? false);
+    let successfulSend = await this.emailService.sendEmail(email, privateKey.key, privateKey.passphrase, this.emailForm.controls.encryption.value ?? false);
+    this.openSnackBar(successfulSend ? 'successfully sent' : 'send failed');
   }
 
   /**
@@ -292,5 +301,11 @@ export class EmailEditorComponent implements OnInit {
       this.emailForm.controls.encryption.disable();
       this.emailForm.controls.encryption.setValue(false);
     }
+  }
+
+  private _snackBar = inject(MatSnackBar);
+
+  openSnackBar(message: string) {
+    this._snackBar.open(message);
   }
 }

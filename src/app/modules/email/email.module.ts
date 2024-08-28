@@ -18,7 +18,7 @@ import { AuthenticationModule } from '../authentication';
 import { EmailEditorComponent } from './components/email-editor/email-editor.component';
 import { EmailViewComponent } from './components/email-view/email-view.component';
 import { PgpImportComponent } from './components/pgp-import/pgp-import.component';
-import { PgpLoadComponent } from './components/pgp-load/pgp-load.component';
+import { PgpImportOnlineComponent } from './components/pgp-import-online/pgp-import-online.component';
 import { PgpManageComponent } from './components/pgp-manage/pgp-manage.component';
 import { TrustworthyIctIssueManageComponent } from './components/trustworthy-ict-issuer-manage/trustworthy-ict-issuer-manage.component';
 import { EmailComponent } from './pages/email/email.component';
@@ -26,12 +26,14 @@ import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';
 import { Oidc2VerificationService } from './services/oidc2-verification/oidc2-verification.service';
 import { PgpService } from './services/pgp/pgp.service';
+import { MatSnackBarModule, MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 
 @NgModule({
   imports: [
     AuthenticationModule,
     CommonModule,
     HttpClientModule,
+    MatSnackBarModule,
     MatButtonModule,
     MatCheckboxModule,
     MatCardModule,
@@ -50,7 +52,7 @@ import { PgpService } from './services/pgp/pgp.service';
     EmailEditorComponent,
     EmailViewComponent,
     PgpImportComponent,
-    PgpLoadComponent,
+    PgpImportOnlineComponent,
     PgpManageComponent,
     TrustworthyIctIssueManageComponent,
   ],
@@ -59,6 +61,7 @@ import { PgpService } from './services/pgp/pgp.service';
     EmailService,
     PgpService,
     Oidc2VerificationService,
+    {provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: {duration: 2500}}
   ],
   exports: [
     EmailComponent,

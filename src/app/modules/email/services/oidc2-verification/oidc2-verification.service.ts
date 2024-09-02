@@ -34,6 +34,9 @@ export class Oidc2VerificationService {
     this.identityService.identitiesChanged.subscribe(() => this.onIdentitiesChanged());
   }
 
+  /**
+   * refresh on identities changed
+   */
   private async onIdentitiesChanged(){
     let newTrustworthyIssuers: TrustworthyIctIssuer[] = [];
     for(let identity of this.identityService.identities){
@@ -51,25 +54,48 @@ export class Oidc2VerificationService {
    */
    private _trustworthyIssuers: TrustworthyIctIssuer[] = [];
 
-   public readonly trustworthyIssuersChanged = new EventEmitter<void>();
+  /**
+   * The trustworthy Issuers changed 
+   * */ 
+  public readonly trustworthyIssuersChanged = new EventEmitter<void>();
 
-
-    public get trustworthyIssuers(){
-      return [...this._trustworthyIssuers];
-    }
-
-  private async getTrustworthyIssuers(identity: Identity): Promise<TrustworthyIctIssuer[]>{
-    return this.gmailApiService.loadTrustworthyIctIssuers(identity);
+  /**
+   * the trustworthy ICT issuers
+   */
+  public get trustworthyIssuers(){
+    return [...this._trustworthyIssuers];
   }
 
-  public async trustIssuer(identity: Identity, issuer: string){
+  /**
+   * Get the trustworthy ICT-Issuers of a identity
+   * @param identity 
+   * @returns 
+   */
+  public async getTrustworthyIssuers(identity: Identity): Promise<TrustworthyIctIssuer[]>{
+    return this.trustworthyIssuers.filter(t => t.identity === identity);
+  }
+
+  /**
+   * trust ict issuers
+   * @param identity 
+   * @param issuer 
+   * @returns 
+   */
+  public async trustIssuer(identity: Identity, issuer: string):  Promise<TrustworthyIctIssuer | undefined>{
     let messageId = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer);
     if(messageId){
-      this._trustworthyIssuers.push({identity, issuer, messageId});
+      let trustworthyIctIssuer = {identity, issuer, messageId};
+      this._trustworthyIssuers.push(trustworthyIctIssuer);
       this.trustworthyIssuersChanged.emit();
+      return trustworthyIctIssuer;
     }
+    return undefined;
   }
 
+  /**
+   * untrust an ICT issuer
+   * @param untrustedIssuer 
+   */
   public async untrustIssuer(untrustedIssuer: TrustworthyIctIssuer){
     let filtered = this._trustworthyIssuers.filter(t => t !== untrustedIssuer);
     await this.gmailApiService.deleteMesage(untrustedIssuer.identity, untrustedIssuer.messageId);

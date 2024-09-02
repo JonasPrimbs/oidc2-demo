@@ -124,17 +124,22 @@ export class GmailApiService {
    * @returns 
    */
    public async sendMail(identity: Identity, mimeContent: string): Promise<MessageResult | undefined>{
-    let message = await firstValueFrom(this.http.post<MessageResult>(
-      `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/send?uploadType=multipart&format=raw`,
-      { raw: mimeContent },
-      {
-        headers: {
-          'Authorization': `Bearer ${identity.accessToken}`,
-          'Content-Type': 'application/json',
+    try{
+      let message = await firstValueFrom(this.http.post<MessageResult>(
+        `https://www.googleapis.com/gmail/v1/users/${identity.claims.email}/messages/send?uploadType=multipart&format=raw`,
+        { raw: mimeContent },
+        {
+          headers: {
+            'Authorization': `Bearer ${identity.accessToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      },
-    ));
-    return message;
+      ));
+      return message;
+    }
+    catch(err){
+      return undefined;
+    }
   }
 
   /**

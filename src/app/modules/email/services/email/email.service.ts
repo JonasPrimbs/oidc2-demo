@@ -30,7 +30,6 @@ export class EmailService {
   constructor(
     private readonly identityService: IdentityService,
     private readonly pgpService: PgpService,
-    private readonly http: HttpClient,
     private readonly gmailApiService: GmailApiService,
   ) { }
 
@@ -73,8 +72,8 @@ export class EmailService {
       emailString = await email.toRawMimeString(privateKey, passphrase);
     }
     if(emailString !== undefined){
-      await this.gmailApiService.sendMail(email.sender, emailString);
-      return true;
+      let res = await this.gmailApiService.sendMail(email.sender, emailString);
+      return res !== undefined;
     }
     return false;
   }  

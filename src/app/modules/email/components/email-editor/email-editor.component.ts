@@ -19,6 +19,40 @@ import { E2ePopPgpOptions } from '../../types/e2e-pop-pgp-options.interface';
   // imports: [MatBottomSheetModule],
 })
 export class EmailEditorComponent implements OnInit {
+
+  /**
+   * The MatSnackBar Object
+   */
+  private snackBar = inject(MatSnackBar);
+
+  /**
+   * Constructs a new Email Editor Component.
+   * @param emailService Email Service instance.
+   * @param pgpService PGP Service instance.
+   * @param identityService Identity Service instance.
+   */
+   constructor(
+    private readonly emailService: EmailService,
+    private readonly pgpService: PgpService,
+    private readonly identityService: IdentityService,
+  ) { 
+    this.emailForm.controls.from.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
+    this.emailForm.controls.to.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
+    this.pgpService.publicKeyOwnershipsChange.subscribe(() => this.updateEncryptionDisabledState());
+  }
+
+  /**
+   * Initializes the component.
+   */
+  ngOnInit(): void {
+    this.pgpService.privateKeysChanged.subscribe(() => {
+      this.updateAvailableKeys();
+    });
+    this.emailForm.controls.from.valueChanges.subscribe(() => {
+      this.updateAvailableKeys();
+    });
+  }
+
   /**
    * Gets the available sender identities.
    */
@@ -100,34 +134,6 @@ export class EmailEditorComponent implements OnInit {
       return { key: keyPair.privateKey, passphrase };
     })();
     return privateKey;
-  }
-
-  /**
-   * Constructs a new Email Editor Component.
-   * @param emailService Email Service instance.
-   * @param pgpService PGP Service instance.
-   * @param identityService Identity Service instance.
-   */
-  constructor(
-    private readonly emailService: EmailService,
-    private readonly pgpService: PgpService,
-    private readonly identityService: IdentityService,
-  ) { 
-    this.emailForm.controls.from.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
-    this.emailForm.controls.to.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
-    this.pgpService.publicKeyOwnershipsChange.subscribe(() => this.updateEncryptionDisabledState());
-  }
-
-  /**
-   * Initializes the component.
-   */
-  ngOnInit(): void {
-    this.pgpService.privateKeysChanged.subscribe(() => {
-      this.updateAvailableKeys();
-    });
-    this.emailForm.controls.from.valueChanges.subscribe(() => {
-      this.updateAvailableKeys();
-    });
   }
 
   /**
@@ -291,6 +297,14 @@ export class EmailEditorComponent implements OnInit {
   }
 
   /**
+   * Shows a small message
+   * @param message 
+   */
+  private openSnackBar(message: string) {
+    this.snackBar.open(message);
+  }
+
+  /**
    * update the disabled state of the encryption-checkbox
    */
   public updateEncryptionDisabledState(){
@@ -301,11 +315,5 @@ export class EmailEditorComponent implements OnInit {
       this.emailForm.controls.encryption.disable();
       this.emailForm.controls.encryption.setValue(false);
     }
-  }
-
-  private _snackBar = inject(MatSnackBar);
-
-  openSnackBar(message: string) {
-    this._snackBar.open(message);
   }
 }

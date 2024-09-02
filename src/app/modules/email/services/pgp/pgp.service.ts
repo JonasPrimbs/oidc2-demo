@@ -219,6 +219,8 @@ export class PgpService {
     };
   }
 
+  // Message Security Check
+
   /**
    * checks the security of a mime message.
    * decrypts the message if encrypted.

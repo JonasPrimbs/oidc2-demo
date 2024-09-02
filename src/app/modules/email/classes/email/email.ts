@@ -118,7 +118,6 @@ export class Email {
         publicKeyString,
         'application/pgp-keys',
         'OpenPGP public key',
-        'quoted-printable',
       );
     }
 

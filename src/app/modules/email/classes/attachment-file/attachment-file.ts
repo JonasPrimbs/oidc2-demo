@@ -54,6 +54,10 @@ export class AttachmentFile implements EmailPart {
     return result;
   }
 
+  /**
+   * returns the content as decoded text
+   * @returns 
+   */
   public decodedText():string{
     let rawContent = decodeBody(this.body, this.encoding);
     let textDecoder = new TextDecoder();
@@ -61,6 +65,11 @@ export class AttachmentFile implements EmailPart {
   }
 
   private downloadUrl: string | undefined;
+
+  /**
+   * get download url for the Attachment content
+   * @returns 
+   */
   public getDownloadUrl(): string{    
     if(this.downloadUrl === undefined){
       let content = decodeBody(this.body, this.encoding);
@@ -70,18 +79,34 @@ export class AttachmentFile implements EmailPart {
     return this.downloadUrl;
   }
 
+  /**
+   * Check if this attachment is a pgp-key
+   * @returns 
+   */
   public isPgpKey() : boolean{
     return this.contentType === contentTypePgpKeys;
   }
 
+  /**
+   * Check if this attachment is a pgp-signature
+   * @returns 
+   */
   public isPgpSignature() : boolean{
     return this.contentType === contentTypePgpSignature;
   }
 
+  /**
+   * Check if this attachment is a ICT
+   * @returns 
+   */
   public isIct() : boolean{
     return this.contentType.includes(contentTypeIct);
   }
 
+  /**
+   * Check if this attachment is a End-2-End PoP 
+   * @returns 
+   */
   public isE2EPoPToken() : boolean{
     return this.contentType.includes(contentTypeE2EPoPToken);
   }

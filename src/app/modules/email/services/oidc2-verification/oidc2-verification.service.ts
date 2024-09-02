@@ -201,9 +201,7 @@ export class Oidc2VerificationService {
     }
 
     try{
-      // todo: sobald bug behoben nachfolgende Zeile zur verification verwenden
-      // let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
-      let ictVerificationResult = await jose.jwtVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
+      let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
       let trustworthyIctIssuer = await (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
 

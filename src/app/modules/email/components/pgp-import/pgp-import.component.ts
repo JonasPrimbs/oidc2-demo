@@ -4,6 +4,8 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 
+import * as openpgp from 'openpgp';
+
 @Component({
   selector: 'app-pgp-import',
   templateUrl: './pgp-import.component.html',
@@ -90,9 +92,22 @@ export class PgpImportComponent {
 
     // Read the PGP private key file and import it.
     const pgpKeyFile = await this.readFile(file);
-    const pgpKeyString = new TextDecoder('utf-8').decode(pgpKeyFile);
-    const pgpPrivateKey = await this.pgpService.importPrivateKey(pgpKeyString);
-
+    let pgpPrivateKey: openpgp.PrivateKey | undefined;
+    
+    // try armored and binary version of the key
+    try{
+      const pgpKeyString = new TextDecoder('utf-8').decode(pgpKeyFile);
+      pgpPrivateKey = await this.pgpService.importPrivateKey(pgpKeyString);
+    }
+    catch(err){
+      try{
+        pgpPrivateKey = await this.pgpService.importBinaryPrivateKey(new Uint8Array(pgpKeyFile));
+      }
+      catch(err){
+        return;
+      }
+    }
+    
     for(let identity of identities){
       // Register the imported private key for each identity.
       this.pgpService.addPrivateKey({

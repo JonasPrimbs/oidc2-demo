@@ -191,6 +191,17 @@ export class PgpService {
   }
 
   /**
+   * Imports a PGP private key.
+   * @param binaryPrivateKey Binary private key to import.
+   * @returns Imported PGP private key.
+   */
+   public async importBinaryPrivateKey(binaryPrivateKey: Uint8Array): Promise<openpgp.PrivateKey> {
+    return await openpgp.readPrivateKey({
+      binaryKey: binaryPrivateKey,
+    });
+  }
+
+  /**
    * Imports a PGP public key.
    * @param armoredPublicKey Armored public key to import.
    * @returns Imported PGP public key.

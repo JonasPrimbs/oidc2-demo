@@ -243,7 +243,9 @@ export class Oidc2VerificationService {
         preferred_username: ictVerificationResult.payload['preferred_username'] as string,
         pgpFingerprint: popVerificationResult.payload['pgp_fingerprint'] as string,
         ictJwtIoUrl: ictJwtIoUrl,
+        ict: ictPopPair.ict,
         popJwtIoUrl: popJwtIoUrl,
+        pop: ictPopPair.pop,
       }
     }
     catch(err){

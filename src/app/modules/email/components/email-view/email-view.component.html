@@ -166,12 +166,22 @@
 
             <!--open ict in jwt.io-->
             <span *ngIf="oidc2VerificationResult.identity.ictJwtIoUrl">
-              open ICT in <a [href]="oidc2VerificationResult.identity.ictJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> <br/>
+              open ICT in <a [href]="oidc2VerificationResult.identity.ictJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> 
+              <br/>
+              <button (click)="copyToClipboard(oidc2VerificationResult.identity.ict)" mat-stroked-button>
+                copy ICT to clipboard
+              </button>
+              <br/>
             </span>
             <!--open pop in jwt.io-->
             <span *ngIf="oidc2VerificationResult.identity.popJwtIoUrl">
-              open E2E PoP in <a [href]="oidc2VerificationResult.identity.popJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> <br/>
-            </span>
+              open E2E PoP in <a [href]="oidc2VerificationResult.identity.popJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> 
+              <br/>
+              <button (click)="copyToClipboard(oidc2VerificationResult.identity.pop)" mat-stroked-button>
+                copy E2E PoP to clipboard
+              </button>
+              <br/>
+            </span>            
           </span>
         </p>
       </div>

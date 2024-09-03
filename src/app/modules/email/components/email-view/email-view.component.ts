@@ -165,4 +165,12 @@ export class EmailViewComponent {
       this.selectedIdentity.controls.identity.setValue(this.identities[0]);
     }
   }
+
+  /**
+   * copy text to the clipboard
+   * @param text 
+   */
+  public copyToClipboard(text: string){
+    navigator.clipboard.writeText(text);
+  }
 }

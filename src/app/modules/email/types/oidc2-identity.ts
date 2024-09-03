@@ -5,5 +5,7 @@ export interface Oidc2Identity{
   preferred_username?: string;
   pgpFingerprint: string;
   ictJwtIoUrl: string;
+  ict: string;
   popJwtIoUrl: string;
+  pop: string;
 }

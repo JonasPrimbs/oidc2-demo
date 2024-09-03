@@ -231,13 +231,19 @@ export class Oidc2VerificationService {
       // no exception: E2EPoPToken verification successful
       popVerified = true; 
 
+      let ictJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.ict}`;
+      let uriEncodedPopPublicKey = encodeURIComponent(JSON.stringify(publicPoPJWK));
+      let popJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.pop}&publicKey=${uriEncodedPopPublicKey}`;
+
       // create oidc2-identity
       oidc2identity = {
         email: ictVerificationResult.payload['email'] as string,
-        email_verified: ictVerificationResult.payload['email_verified'] as boolean,
+        emailVerified: ictVerificationResult.payload['email_verified'] as boolean,
         issuer: ictVerificationResult.payload.iss ?? '',
         preferred_username: ictVerificationResult.payload['preferred_username'] as string,
         pgpFingerprint: popVerificationResult.payload['pgp_fingerprint'] as string,
+        ictJwtIoUrl: ictJwtIoUrl,
+        popJwtIoUrl: popJwtIoUrl,
       }
     }
     catch(err){

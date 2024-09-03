@@ -138,10 +138,10 @@
             </span>
 
             <!--e-mail verified of identity-->
-            <span *ngIf="oidc2VerificationResult.identity.email_verified">
+            <span *ngIf="oidc2VerificationResult.identity.emailVerified">
               E-Mail verified <br/>
             </span>
-            <span *ngIf="!oidc2VerificationResult.identity.email_verified">
+            <span *ngIf="!oidc2VerificationResult.identity.emailVerified">
               E-Mail not verified <br/>
             </span>
 
@@ -162,6 +162,15 @@
             <!--PGP fingerprint of identity-->
             <span *ngIf="oidc2VerificationResult.identity.pgpFingerprint">
               PGP-fingerprint: {{ oidc2VerificationResult.identity.pgpFingerprint }} <br/>
+            </span>
+
+            <!--open ict in jwt.io-->
+            <span *ngIf="oidc2VerificationResult.identity.ictJwtIoUrl">
+              open ICT in <a [href]="oidc2VerificationResult.identity.ictJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> <br/>
+            </span>
+            <!--open pop in jwt.io-->
+            <span *ngIf="oidc2VerificationResult.identity.popJwtIoUrl">
+              open E2E PoP in <a [href]="oidc2VerificationResult.identity.popJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> <br/>
             </span>
           </span>
         </p>

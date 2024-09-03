@@ -203,7 +203,7 @@ export class Oidc2VerificationService {
     try{
       let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
-      let trustworthyIctIssuer = await (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
+      let trustworthyIctIssuer = (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
 
       // is ICT issuer trustworthy?
       if(ictVerificationResult.payload.iss && trustworthyIctIssuer.includes(ictVerificationResult.payload.iss)){

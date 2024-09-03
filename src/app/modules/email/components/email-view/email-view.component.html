@@ -30,13 +30,13 @@
     <button mat-button matTooltip="security details" 
             (click)="toggleSecurityInfo()" 
             class="security-details-button">
-      <mat-icon *ngIf="mimeMessageSecurity && mimeMessageSecurity.encrypted" 
-                class="icon-display"
+      <mat-icon *ngIf="mimeMessageSecurity && mimeMessageSecurity.encrypted && mimeMessageSecurity.decryptionSuccessful" 
+                class="icon-display good"
                 svgIcon="lock-check-outline"/>
       <mat-icon *ngIf="mimeMessageSecurity && allSignaturesValid(mimeMessageSecurity)" 
-                class="icon-display"
+                class="icon-display good"
                 svgIcon="certificate"/>
-      <mat-icon *ngIf="mimeMessageSecurity && (!mimeMessageSecurity.encrypted || !allSignaturesValid(mimeMessageSecurity))" 
+      <mat-icon *ngIf="mimeMessageSecurity && (!mimeMessageSecurity.encrypted || !mimeMessageSecurity.decryptionSuccessful || !allSignaturesValid(mimeMessageSecurity))" 
                 class="icon-display bad"
                 svgIcon="email-alert-outline"/>
     </button>

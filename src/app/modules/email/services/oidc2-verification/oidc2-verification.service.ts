@@ -212,8 +212,8 @@ export class Oidc2VerificationService {
       else{
         errorMessage = `ICT issuer ${ictVerificationResult.payload.iss} is not trustworthy`;
       }
-      
-      let publicPoPJWK = (ictVerificationResult.payload['cnf'] as any).jwk;     
+            
+      let publicPoPJWK = ictVerificationResult.payload.cnf.jwk;     
 
       // key have to be extractable (e2ePoPTokenVerify creates a thumbprint of the key)
       let E2EPoPPublicKey = await crypto.subtle.importKey('jwk', publicPoPJWK, { name: "ECDSA", namedCurve: "P-384", }, true, ['verify']);

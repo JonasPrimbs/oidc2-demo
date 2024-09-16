@@ -9,6 +9,7 @@ import { Email } from '../../classes/email/email';
 import { EmailContent } from '../../classes/email-content/email-content';
 import { EmailService } from '../../services/email/email.service';
 import { PgpService } from '../../services/pgp/pgp.service';
+import { Oidc2AttachmentService } from '../../services/oidc2-attachment/oidc2-attachment.service';
 
 @Component({
   selector: 'app-email-editor',
@@ -33,6 +34,7 @@ export class EmailEditorComponent implements OnInit {
     private readonly emailService: EmailService,
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
+    private readonly oidc2AttachmentService: Oidc2AttachmentService,
   ) { 
     this.emailForm.controls.from.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
     this.emailForm.controls.to.valueChanges.subscribe(() => this.updateEncryptionDisabledState());
@@ -155,7 +157,7 @@ export class EmailEditorComponent implements OnInit {
     const identities = this.emailForm.controls.identities.value;
     if (identities) {
       // generate and append ict/pop attachments
-      let attachments = await this.emailService.generateIctPopAttachments(identities, email.receiver, privateKey.key);
+      let attachments = await this.oidc2AttachmentService.generateIctPopAttachments(identities, email.receiver, privateKey.key);
       attachments.forEach(a => email.parts.push(a));
     }
     

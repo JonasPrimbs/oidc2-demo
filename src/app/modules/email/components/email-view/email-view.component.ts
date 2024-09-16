@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 
 import { MimeMessage } from '../../classes/mime-message/mime-message';
+import { DataService } from '../../services/data/data.service';
 import { EmailService } from '../../services/email/email.service';
 import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
 import { PgpService } from '../../services/pgp/pgp.service';
@@ -15,6 +17,11 @@ import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-veri
   styleUrls: ['./email-view.component.scss']
 })
 export class EmailViewComponent {
+
+  /**
+   * The MatSnackBar Object
+   */
+  private snackBar = inject(MatSnackBar);
 
   private mailIndex: number = 0;
 
@@ -32,6 +39,7 @@ export class EmailViewComponent {
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
     private readonly oidc2VerificationService: Oidc2VerificationService,
+    private readonly dataService: DataService,
   )
   { 
     this.identityService.identitiesChanged.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
@@ -116,12 +124,7 @@ export class EmailViewComponent {
    * @returns 
    */
   public allSignaturesValid(securityResult: MimeMessageSecurityResult) : boolean{
-    for(let signature of securityResult.signatureVerificationResults){
-      if(!signature.oidc2Identity || !signature.signatureVerified){
-        return false;
-      }
-    }
-    return true;
+    return this.pgpService.signaturesAvailableAndValid(securityResult);
   }
 
   public get disabledSaveTrustfullPublicKey (){
@@ -132,9 +135,16 @@ export class EmailViewComponent {
    * save the public key as trustful public key
    */
   public saveTrustfulPublicKey(){
-    let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
-    if(!this.disabledSaveTrustfullPublicKey && senderMail){
-      this.pgpService.savePublicKey(this.selectedIdentity.controls.identity.value!, this.mimeMessageSecurity?.publicKey!, senderMail!);
+    let identity = this.selectedIdentity.controls.identity.value!;
+    let canStoreDataResult = this.dataService.canStoreData(identity);
+    if(canStoreDataResult.canStoreData){
+      let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
+      if(!this.disabledSaveTrustfullPublicKey && senderMail){
+        this.dataService.savePublicKey(identity, this.mimeMessageSecurity?.publicKey!, senderMail!);
+      }
+    }
+    else{
+      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
     }
   }
 
@@ -152,9 +162,16 @@ export class EmailViewComponent {
    * @param oidc2VerificationResult 
    */
   public trustIctIssuer(oidc2VerificationResult: Oidc2IdentityVerificationResult){
-    if(this.canTrustIctIssuer(oidc2VerificationResult)){
-      this.oidc2VerificationService.trustIssuer(this.selectedIdentity.controls.identity.value!, oidc2VerificationResult.identity?.issuer!);
+    let identity = this.selectedIdentity.controls.identity.value!;
+    let canStoreDataResult = this.dataService.canStoreData(identity);
+    if(canStoreDataResult.canStoreData){
+      if(this.canTrustIctIssuer(oidc2VerificationResult)){
+        this.dataService.trustIctIssuer(this.selectedIdentity.controls.identity.value!, oidc2VerificationResult.identity?.issuer!);
+      }
     }
+    else{
+      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
+    }    
   }
 
   /**
@@ -172,5 +189,13 @@ export class EmailViewComponent {
    */
   public copyToClipboard(text: string){
     navigator.clipboard.writeText(text);
+  }
+
+  /**
+   * Shows a small message
+   * @param message 
+   */
+   private openSnackBar(message: string) {
+    this.snackBar.open(message);
   }
 }

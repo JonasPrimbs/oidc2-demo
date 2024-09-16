@@ -28,25 +28,7 @@ export class Oidc2VerificationService {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly gmailApiService: GmailApiService,
-    private readonly identityService: IdentityService,
   ){
-    this.identityService.identitiesChanged.subscribe(() => this.onIdentitiesChanged());
-  }
-
-  /**
-   * refresh on identities changed
-   */
-  private async onIdentitiesChanged(){
-    let newTrustworthyIssuers: TrustworthyIctIssuer[] = [];
-    for(let identity of this.identityService.identities){
-      if(identity.hasGoogleIdentityProvider){
-        let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity)
-        newTrustworthyIssuers.push(...newIssuers); 
-      }
-    }
-    this._trustworthyIssuers = [...newTrustworthyIssuers];
-    this.trustworthyIssuersChanged.emit();
   }
 
   /**
@@ -81,15 +63,11 @@ export class Oidc2VerificationService {
    * @param issuer 
    * @returns 
    */
-  public async trustIssuer(identity: Identity, issuer: string):  Promise<TrustworthyIctIssuer | undefined>{
-    let messageId = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer);
-    if(messageId){
-      let trustworthyIctIssuer = {identity, issuer, messageId};
-      this._trustworthyIssuers.push(trustworthyIctIssuer);
-      this.trustworthyIssuersChanged.emit();
-      return trustworthyIctIssuer;
-    }
-    return undefined;
+  public trustIssuer(identity: Identity, issuer: string, messageId: string):  TrustworthyIctIssuer{
+    let trustworthyIctIssuer = {identity, issuer, messageId};
+    this._trustworthyIssuers.push(trustworthyIctIssuer);
+    this.trustworthyIssuersChanged.emit();
+    return trustworthyIctIssuer;
   }
 
   /**
@@ -98,7 +76,6 @@ export class Oidc2VerificationService {
    */
   public async untrustIssuer(untrustedIssuer: TrustworthyIctIssuer){
     let filtered = this._trustworthyIssuers.filter(t => t !== untrustedIssuer);
-    await this.gmailApiService.deleteMesage(untrustedIssuer.identity, untrustedIssuer.messageId);
     if(filtered !== this._trustworthyIssuers){
       this._trustworthyIssuers = filtered;
       this.trustworthyIssuersChanged.emit();
@@ -161,7 +138,7 @@ export class Oidc2VerificationService {
    * @param verificationDate 
    * @returns 
    */
-  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verifierIdentity: Identity, verificationDate?: Date) : Promise<Oidc2IdentityVerificationResult> {
+  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verifierIdentity: Identity, verificationDate?: Date, additionalTrustworthyIssuers?: string[]) : Promise<Oidc2IdentityVerificationResult> {
     let ictVerified: boolean = false;
     let popVerified: boolean = false;
     let errorMessage: string | undefined;
@@ -204,6 +181,10 @@ export class Oidc2VerificationService {
       let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
       let trustworthyIctIssuer = (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
+      
+      if(additionalTrustworthyIssuers){
+        trustworthyIctIssuer = [...trustworthyIctIssuer, ...additionalTrustworthyIssuers];
+      }
 
       // is ICT issuer trustworthy?
       if(ictVerificationResult.payload.iss && trustworthyIctIssuer.includes(ictVerificationResult.payload.iss)){

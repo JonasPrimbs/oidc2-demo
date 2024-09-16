@@ -18,12 +18,8 @@ import * as openpgp from 'openpgp';
 export class PgpService {
 
   constructor(
-    private readonly gmailApiService: GmailApiService,
     private readonly oidc2VerificationService: Oidc2VerificationService,
-    private readonly identityService: IdentityService,
-  ) { 
-    this.identityService.identitiesChanged.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
-  }
+  ) { }
 
   // Key Management:
 
@@ -51,21 +47,6 @@ export class PgpService {
   }
 
   /**
-   * Saves a private key to gmail.
-   * @param privateKey PGP Private Key to save.
-   */
-   public async savePrivateKey(privateKey: PrivateKeyOwnership): Promise<PrivateKeyOwnership | undefined> {
-    if(privateKey.identity.hasGoogleIdentityProvider){
-      let messageId = await this.gmailApiService.savePrivateKey(privateKey.identity, privateKey.key);
-      if(messageId){
-        privateKey.messageId = messageId;
-      }
-    }
-    
-    return undefined;
-  }
-
-  /**
    * Removes a PGP Private Key from privateKeys.
    * @param privateKey PGP Private Key to remove.
    */
@@ -73,17 +54,6 @@ export class PgpService {
     const index = this._privateKeys.indexOf(privateKey);
     this._privateKeys.splice(index, 1);
     this.privateKeysChanged.emit();
-  }
-
-  /**
-   * removes a private key and delete it in google 
-   * @param privateKey 
-   */
-  public deletePrivateKey(privateKey: PrivateKeyOwnership): void {
-    this.removeLocalPrivateKey(privateKey);
-    if(privateKey.messageId){
-      this.gmailApiService.deleteMesage(privateKey.identity, privateKey.messageId);
-    }
   }
 
   /**
@@ -106,20 +76,6 @@ export class PgpService {
   public readonly publicKeyOwnershipsChange = new EventEmitter<void>();
 
   /**
-   * save a public key to gmail.
-   * @param identity 
-   * @param publicKey 
-   * @param sender
-   */
-  public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string){    
-    let messageId = await this.gmailApiService.savePublicKey(identity, publicKey, sender);
-    if(messageId){
-      this._publicKeys.push({identity, messageId, key: publicKey, publicKeyOwner: sender});
-      this.publicKeyOwnershipsChange.emit();
-    }
-  }
-
-  /**
    * Removes a public key local
    * @param publicKeyOwnership 
    */
@@ -130,28 +86,11 @@ export class PgpService {
   }
 
   /**
-   * delete a public key local and on google
-   * @param publicKey 
+   * adds a new public key ownership
+   * @param publicKeyOwnership 
    */
-   public async deletePublicKey(publicKey: PublicKeyOwnership): Promise<void>{
-    this.removeLocalPublicKey(publicKey);
-    if(publicKey.messageId){
-      await this.gmailApiService.deleteMesage(publicKey.identity, publicKey.messageId);
-    }
-  }
-
-  /**
-   * loads the public key ownerships on identities changed
-   */
-  private async loadPublicKeyOwnershipsOnIdentitiesChanged(){
-    let newPublicKeyOwnerships: PublicKeyOwnership[] = [];
-    for(let identity of this.identityService.identities){
-      if(identity.hasGoogleIdentityProvider){
-        let publicKeyOwnerships = await this.gmailApiService.loadPublicKeyOwnerships(identity);
-        newPublicKeyOwnerships.push(...publicKeyOwnerships); 
-      }
-    }
-    this._publicKeys = [...newPublicKeyOwnerships];
+  public async addPublicKeyOwnership(publicKeyOwnership: PublicKeyOwnership){    
+    this._publicKeys.push(publicKeyOwnership);
     this.publicKeyOwnershipsChange.emit();
   }
 
@@ -239,7 +178,7 @@ export class PgpService {
    * @param mimeMessage 
    * @returns 
    */
-  public async checkMimeMessageSecurity(mimeMessage: MimeMessage, verifierIdentity: Identity) : Promise<MimeMessageSecurityResult>{
+  public async checkMimeMessageSecurity(mimeMessage: MimeMessage, verifierIdentity: Identity, additionalTrustworthyIctIssuers?: string[]) : Promise<MimeMessageSecurityResult>{
     let verifiedSignatures: SignatureVerificationResult[] = [];
     let processingMimeMessage: MimeMessage = mimeMessage;
 
@@ -303,7 +242,7 @@ export class PgpService {
     }
 
     let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(processingMimeMessage);
-    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, verifierIdentity, mimeMessage.payload.date)));
+    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, verifierIdentity, mimeMessage.payload.date, additionalTrustworthyIctIssuers)));
     
     if(publicKey){
       verifiedSignatures = await this.verifyPgpSignatures(signatures, oidc2VerificationResults, publicKey!);
@@ -368,7 +307,7 @@ export class PgpService {
             oidc2Identity: matchingOidc2Result.identity,
             keyId: signatureKeyId,
             signedAt: signature.packets[0].created ?? undefined
-          });          
+          });
         }
         else{
           let errorMessage = '';
@@ -400,6 +339,23 @@ export class PgpService {
     }
     
     return signatureVerificationResults;
+  }
+
+  /**
+   * check, wether all signatures are valid
+   * @param securityResult 
+   * @returns 
+   */
+  public signaturesAvailableAndValid(securityResult: MimeMessageSecurityResult) : boolean{
+    // all signatures are valid
+    for(let signature of securityResult.signatureVerificationResults){
+      if(!signature.oidc2Identity || !signature.signatureVerified){
+        return false;
+      }
+    }
+
+    // there exist at least one signature
+    return securityResult.signatureVerificationResults.length > 0;
   }
 
   /**

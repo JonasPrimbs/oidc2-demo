@@ -6,6 +6,7 @@ import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { MatTable } from '@angular/material/table';
+import { DataService } from '../../services/data/data.service';
 
 @Component({
   selector: 'app-pgp-import-online',
@@ -23,10 +24,10 @@ export class PgpImportOnlineComponent {
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
     private readonly gmailApiService: GmailApiService,
+    private readonly dataService: DataService,
   ) 
   {
-    this.identityService.identitiesChanged.subscribe(() => this.relaodOnlinePrivateKeys()); 
-    this.relaodOnlinePrivateKeys();
+    this.dataService.onlinePrivateKeysChanged.subscribe(() => this.relaodOnlinePrivateKeys()); 
   }
 
   /**
@@ -61,26 +62,21 @@ export class PgpImportOnlineComponent {
    */
   public async relaodOnlinePrivateKeys(){
     this.pgpForm.controls.privateKeys.clear();
-    for(let identity of this.identities){
-      let privateKeys = await this.gmailApiService.loadPrivateKeys(identity);
+    for(let onlinePrivateKey of this.dataService.onlinePrivateKeys){      
+      let keyId = this.pgpService.getPrettyKeyID(onlinePrivateKey.privateKey.getKeyID());      
+      let privateKeyControl = new FormGroup<PrivateKeyForm>({
+        key: new FormControl<OnlinePrivateKey>(onlinePrivateKey),
+        keyId: new FormControl<string>(keyId),
+        passphrase: new FormControl<string>(''),
+      });
       
-      for(let privateKey of privateKeys){
-        let keyId = this.pgpService.getPrettyKeyID(privateKey.privateKey.getKeyID());
-        
-        let privateKeyControl = new FormGroup<PrivateKeyForm>({
-          key: new FormControl<OnlinePrivateKey>(privateKey),
-          keyId: new FormControl<string>(keyId),
-          passphrase: new FormControl<string>(''),
-        });
-        
-        this.pgpForm.controls.privateKeys.push(privateKeyControl);  
-      }
-      
+      this.pgpForm.controls.privateKeys.push(privateKeyControl);        
     }
+
     if(this.table){
       this.table.renderRows();
     }
-  }
+  } 
 
   /**
    * import an online private key for use

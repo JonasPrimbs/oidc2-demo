@@ -1,10 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
 import * as openpgp from 'openpgp';
 
 import { PgpService } from '../../services/pgp/pgp.service';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
+import { DataService } from '../../services/data/data.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-pgp-manage',
@@ -14,11 +16,17 @@ import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface
 export class PgpManageComponent {
   
   /**
+   * The MatSnackBar Object
+   */
+   private snackBar = inject(MatSnackBar);
+   
+  /**
    * Constructs a new PGP Load Component.
    * @param pgpService PGP Service instance.
    */
   constructor(
     private readonly pgpService: PgpService,
+    private readonly dataService: DataService,
   ) 
   { }
 
@@ -39,7 +47,13 @@ export class PgpManageComponent {
    * @param privateKey 
    */
   public async savePrivateKey(privateKey: PrivateKeyOwnership){
-    await this.pgpService.savePrivateKey(privateKey);
+    let canStoreDataResult = this.dataService.canStoreData(privateKey.identity);
+    if(canStoreDataResult.canStoreData){
+      await this.dataService.savePrivateKey(privateKey);
+    }
+    else{
+      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
+    }
   }
 
   /**
@@ -47,7 +61,7 @@ export class PgpManageComponent {
    * @param privateKey 
    */
   public async deletePrivateKey(privateKey: PrivateKeyOwnership){
-    await this.pgpService.deletePrivateKey(privateKey);
+    await this.dataService.deletePrivateKey(privateKey);
   }
    
   /**
@@ -67,7 +81,7 @@ export class PgpManageComponent {
    * @param publicKey 
    */
   public async deletePublicKey(publicKey: PublicKeyOwnership){
-    this.pgpService.deletePublicKey(publicKey);
+    this.dataService.deletePublicKey(publicKey);
   }
 
   /**
@@ -77,6 +91,14 @@ export class PgpManageComponent {
    */
   public getKeyId(key: openpgp.PublicKey | openpgp.PrivateKey): string{
     return this.pgpService.getPrettyKeyID(key.getKeyID());
+  }
+
+  /**
+   * Shows a small message
+   * @param message 
+   */
+   private openSnackBar(message: string) {
+    this.snackBar.open(message);
   }
 }
 

@@ -5,11 +5,12 @@ import { Identity } from "src/app/modules/authentication";
 import { AttachmentFile } from "../../classes/attachment-file/attachment-file";
 import { Email } from "../../classes/email/email";
 import { decodeAndParseMimeMessage, MimeMessage } from "../../classes/mime-message/mime-message";
-import { PublicKeyOwnership } from "../../types/public-key-ownership.interface";
-import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
+import { PublicKeyOwnership, PublicKeyOwnershipExtended } from "../../types/public-key-ownership.interface";
+import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from "../../types/trustworthy-ict-issuer";
 
 import * as openpgp from 'openpgp';
 import { OnlinePrivateKey as OnlinePrivateKey } from "../../types/online-private-key.interface";
+import { Oidc2AttachmentService } from "../oidc2-attachment/oidc2-attachment.service";
 
 @Injectable({
   providedIn: 'root',
@@ -26,6 +27,7 @@ export class GmailApiService {
 
   constructor(
     private readonly http: HttpClient,
+    private readonly oidc2AttachmentService: Oidc2AttachmentService,
   ){}
 
   /**
@@ -211,13 +213,17 @@ export class GmailApiService {
    * @param labelName 
    * @returns 
    */
-  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string): Promise<MessageResult | undefined>{
-    const email = new Email(identity, "", subject, attachments)
+  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string): Promise<MessageResult | undefined>{
+    const email = new Email(identity, identity.claims.email ?? "", subject, attachments);
+
+    const ictPopAttachments = await this.oidc2AttachmentService.generateIctPopAttachments([ictIdentity], email.receiver, privateKey);
+
+    ictPopAttachments.forEach(a => email.parts.push(a));
     
-    const mimeMessage = await email.toRawMimeString();
-
+    const mimeMessage = await email.toRawMimeString(privateKey, passphrase);
+    console.log(mimeMessage);
     let message = await this.importMail(identity, mimeMessage);
-
+    console.log(message);
     if(!message){
       return undefined;
     }
@@ -247,9 +253,9 @@ export class GmailApiService {
    * @param identity 
    * @param attachment 
    */
-  public async savePrivateKey(identity: Identity, privateKey: openpgp.PrivateKey): Promise<string|undefined> { 
+  public async savePrivateKey(identity: Identity, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string): Promise<string|undefined> { 
     const attachment = new AttachmentFile(this.privateKeyAttachmentFileName, privateKey.armor(), "text/plain");    
-    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName);
+    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName, ictIdentity, privateKey, passphrase);
     return message?.id;
   }
 
@@ -271,7 +277,7 @@ export class GmailApiService {
         let privateKeyAttachment = parsedMimeMessage.payload.attachments.filter(a => a.name === this.privateKeyAttachmentFileName);
         for(let attachment of privateKeyAttachment){
           let privateKey = await openpgp.readPrivateKey({ armoredKey: attachment.decodedText() })
-          privateKeys.push({identity, messageId: mail.id, privateKey});
+          privateKeys.push({identity, messageId: mail.id, privateKey, mimeMessage: parsedMimeMessage});
         }
       }
     }
@@ -285,9 +291,9 @@ export class GmailApiService {
    * @param sender 
    * @returns 
    */
-  public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string) : Promise<string | void>{
+  public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string) : Promise<string | undefined>{
     const attachment = new AttachmentFile(this.publicKeyAttachmentFileName, publicKey.armor(), "text/plain");
-    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName);
+    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName, ictIdentity, privateKey, passphrase);
     return message?.id;
   }
 
@@ -296,9 +302,9 @@ export class GmailApiService {
    * @param identity 
    * @returns 
    */
-   public async loadPublicKeyOwnerships(identity: Identity) : Promise<PublicKeyOwnership[]>{
+   public async loadPublicKeyOwnerships(identity: Identity) : Promise<PublicKeyOwnershipExtended[]>{
     let listMailsResult = await this.listMails(identity, `label:${this.publicKeyLabelName}`);
-    let publicKeyOwnerships: PublicKeyOwnership[] = [];
+    let publicKeyOwnerships: PublicKeyOwnershipExtended[] = [];
     if(!listMailsResult){
       return [];
     }
@@ -313,7 +319,8 @@ export class GmailApiService {
             identity: identity, 
             publicKeyOwner: parsedMimeMessage.payload.subject ?? '',
             key: publicKey, 
-            messageId: mail.id
+            messageId: mail.id,
+            mimeMessage: parsedMimeMessage,
           });
         }
       }
@@ -327,9 +334,9 @@ export class GmailApiService {
    * @param issuer 
    * @returns 
    */
-  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string) : Promise<string | undefined> {
+  public async saveTrustworthyIctIssuer(identity: Identity, issuer: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string) : Promise<string | undefined> {
     let attachment = new AttachmentFile(this.trustworthyIctIssuerAttachmentFileName, issuer, "text/plain", "trustworthy_ict_issuer");
-    let message = await this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName);
+    let message = await this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName, ictIdentity, privateKey, passphrase);
     return message?.id;
   }
 
@@ -338,9 +345,9 @@ export class GmailApiService {
    * @param identity 
    * @returns 
    */
-  public async loadTrustworthyIctIssuers(identity: Identity) : Promise<TrustworthyIctIssuer[]>{
+  public async loadTrustworthyIctIssuers(identity: Identity) : Promise<TrustworthyIctIssuerExtended[]>{
     let listMailsResult = await this.listMails(identity, `label:${this.trustworthyIctIssuerLabelName}`);
-    let trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
+    let trustworthyIctIssuers: TrustworthyIctIssuerExtended[] = [];
     if(!listMailsResult){
       return [];
     }
@@ -353,7 +360,8 @@ export class GmailApiService {
           trustworthyIctIssuers.push({ 
             identity: identity, 
             issuer: attachment.decodedText().trim(), 
-            messageId: mail.id
+            messageId: mail.id,
+            mimeMessage: parsedMimeMessage,
           });
         }
       }

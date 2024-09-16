@@ -82,6 +82,15 @@ export class Oidc2VerificationService {
     }
   }
 
+  /**
+   * set the trustworthy ict issuers
+   * @param trustworthyIctIssuers 
+   */
+  public setTrustworthyIctIssuers(trustworthyIctIssuers: TrustworthyIctIssuer[]){
+    this._trustworthyIssuers = [...trustworthyIctIssuers];
+    this.trustworthyIssuersChanged.emit();
+  }
+
 
   /**
    * Extract the ICT/PoP-pairs of a MimeMessage

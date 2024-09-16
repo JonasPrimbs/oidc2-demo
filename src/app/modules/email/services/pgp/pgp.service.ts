@@ -94,6 +94,15 @@ export class PgpService {
     this.publicKeyOwnershipsChange.emit();
   }
 
+  /**
+   * set the public key ownerships
+   * @param publicKeyOwnerships 
+   */
+  public setPublicKeyOwnerships(publicKeyOwnerships: PublicKeyOwnership[]){
+    this._publicKeys = [...publicKeyOwnerships];
+    this.publicKeyOwnershipsChange.emit();
+  }
+
   // Key Generation / Import:
 
   /**
@@ -357,6 +366,24 @@ export class PgpService {
     // there exist at least one signature
     return securityResult.signatureVerificationResults.length > 0;
   }
+
+  /**
+   * check, wether the mail was sent from a given sender
+   * @param securityResult 
+   * @returns 
+   */
+   public isMailFromSender(senderEmail: string, securityResult: MimeMessageSecurityResult) : boolean{
+    for(let signature of securityResult.signatureVerificationResults){
+      // check wether the oidc2 identity is the sender mail address
+      if(signature.signatureVerified && signature.oidc2Identity){
+        return signature.oidc2Identity.email === senderEmail;
+      }
+    }
+
+    // the sender is not the gi
+    return false;
+  }
+
 
   /**
    * pretty-print the PGP-KeyID

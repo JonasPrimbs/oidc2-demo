@@ -63,7 +63,7 @@ export class TrustworthyIctIssueManageComponent {
    */
   public async trust(){
     if(this.trustIctIssuer.controls.identity.value && this.trustIctIssuer.controls.issuer.value){
-      await this.dataService.trustIctIssuer(this.trustIctIssuer.controls.identity.value, this.trustIctIssuer.controls.issuer.value);
+      await this.dataService.saveTrustIctIssuer(this.trustIctIssuer.controls.identity.value, this.trustIctIssuer.controls.issuer.value);
       this.trustIctIssuer.controls.issuer.setValue("");
     }
   }

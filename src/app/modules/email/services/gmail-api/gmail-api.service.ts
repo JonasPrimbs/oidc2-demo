@@ -11,6 +11,7 @@ import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from "../../types/
 import * as openpgp from 'openpgp';
 import { OnlinePrivateKey as OnlinePrivateKey } from "../../types/online-private-key.interface";
 import { Oidc2AttachmentService } from "../oidc2-attachment/oidc2-attachment.service";
+import { EmailContent } from "../../classes/email-content/email-content";
 
 @Injectable({
   providedIn: 'root',
@@ -23,7 +24,7 @@ export class GmailApiService {
 
   public readonly publicKeyAttachmentFileName = "public_key.asc";
   public readonly privateKeyAttachmentFileName = "private_key.asc";
-  readonly trustworthyIctIssuerAttachmentFileName = "trustworthy_ict_issuer.txt";
+  public readonly trustworthyIctIssuerAttachmentFileName = "trustworthy_ict_issuer.txt";
 
   constructor(
     private readonly http: HttpClient,
@@ -213,17 +214,16 @@ export class GmailApiService {
    * @param labelName 
    * @returns 
    */
-  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string): Promise<MessageResult | undefined>{
-    const email = new Email(identity, identity.claims.email ?? "", subject, attachments);
+  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string, explanation: string): Promise<MessageResult | undefined>{    
+    let emailBody = new EmailContent(explanation);
+    const email = new Email(identity, identity.claims.email ?? "", subject, [emailBody, ...attachments]);
 
     const ictPopAttachments = await this.oidc2AttachmentService.generateIctPopAttachments([ictIdentity], email.receiver, privateKey);
 
     ictPopAttachments.forEach(a => email.parts.push(a));
     
     const mimeMessage = await email.toRawMimeString(privateKey, passphrase);
-    console.log(mimeMessage);
     let message = await this.importMail(identity, mimeMessage);
-    console.log(message);
     if(!message){
       return undefined;
     }
@@ -254,8 +254,10 @@ export class GmailApiService {
    * @param attachment 
    */
   public async savePrivateKey(identity: Identity, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string): Promise<string|undefined> { 
+    let explanation = `The attachment ${this.privateKeyAttachmentFileName} contains your encrypted private key with the KeyId 0x${ privateKey.getKeyID().toHex().toUpperCase() }.
+    After deleting this mail you can neither decrypt nor sign mails with this private key.`;
     const attachment = new AttachmentFile(this.privateKeyAttachmentFileName, privateKey.armor(), "text/plain");    
-    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName, ictIdentity, privateKey, passphrase);
+    let message = await this.saveData(identity, "private_key", [attachment], this.privateKeyLabelName, ictIdentity, privateKey, passphrase, explanation);
     return message?.id;
   }
 
@@ -292,8 +294,10 @@ export class GmailApiService {
    * @returns 
    */
   public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string) : Promise<string | undefined>{
+    let explanation = `The attachment ${this.publicKeyAttachmentFileName} contains the PGP-public-key of ${sender}. 
+    After deleting this mail you can't encrypt a mail for ${sender} with the Key 0x${publicKey.getKeyID().toHex().toUpperCase()}.`;
     const attachment = new AttachmentFile(this.publicKeyAttachmentFileName, publicKey.armor(), "text/plain");
-    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName, ictIdentity, privateKey, passphrase);
+    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName, ictIdentity, privateKey, passphrase, explanation);
     return message?.id;
   }
 
@@ -335,8 +339,10 @@ export class GmailApiService {
    * @returns 
    */
   public async saveTrustworthyIctIssuer(identity: Identity, issuer: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string) : Promise<string | undefined> {
+    let explanation = `the attachment ${this.trustworthyIctIssuerAttachmentFileName} contains your trust into the ICT-issuer ${issuer}.
+    After deleting this mail you revoke your trust into the ICT issuer.`;
     let attachment = new AttachmentFile(this.trustworthyIctIssuerAttachmentFileName, issuer, "text/plain", "trustworthy_ict_issuer");
-    let message = await this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName, ictIdentity, privateKey, passphrase);
+    let message = await this.saveData(identity, "ict_issuer", [ attachment ], this.trustworthyIctIssuerLabelName, ictIdentity, privateKey, passphrase, explanation);
     return message?.id;
   }
 

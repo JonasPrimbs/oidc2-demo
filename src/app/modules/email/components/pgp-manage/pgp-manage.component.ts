@@ -49,11 +49,13 @@ export class PgpManageComponent {
   public async savePrivateKey(privateKey: PrivateKeyOwnership){
     let canStoreDataResult = this.dataService.canStoreData(privateKey.identity);
     if(canStoreDataResult.canStoreData){
-      await this.dataService.savePrivateKey(privateKey);
+      let res = await this.dataService.savePrivateKey(privateKey);
+      if(res){
+        this.openSnackBar("private key stored!");
+        return;
+      }
     }
-    else{
-      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
-    }
+    this.openSnackBar(canStoreDataResult.errorMessage ?? "something went wrong");
   }
 
   /**

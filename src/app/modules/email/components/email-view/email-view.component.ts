@@ -134,18 +134,20 @@ export class EmailViewComponent {
   /**
    * save the public key as trustful public key
    */
-  public saveTrustfulPublicKey(){
+  public async saveTrustfulPublicKey(){
     let identity = this.selectedIdentity.controls.identity.value!;
     let canStoreDataResult = this.dataService.canStoreData(identity);
     if(canStoreDataResult.canStoreData){
       let senderMail = this.mimeMessageSecurity?.oidc2VerificationResults.find(id => id.ictVerified && id.popVerified && id.identity?.email)?.identity?.email;
       if(!this.disabledSaveTrustfullPublicKey && senderMail){
-        this.dataService.savePublicKey(identity, this.mimeMessageSecurity?.publicKey!, senderMail!);
+        let res = await this.dataService.savePublicKey(identity, this.mimeMessageSecurity?.publicKey!, senderMail!);
+        if(res){
+          this.openSnackBar("public key stored");
+          return;
+        }
       }
     }
-    else{
-      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
-    }
+    this.openSnackBar(canStoreDataResult.errorMessage ?? "something went wrong");
   }
 
   /**
@@ -161,17 +163,19 @@ export class EmailViewComponent {
    * trust the issuer of the ICT
    * @param oidc2VerificationResult 
    */
-  public trustIctIssuer(oidc2VerificationResult: Oidc2IdentityVerificationResult){
+  public async trustIctIssuer(oidc2VerificationResult: Oidc2IdentityVerificationResult){
     let identity = this.selectedIdentity.controls.identity.value!;
     let canStoreDataResult = this.dataService.canStoreData(identity);
     if(canStoreDataResult.canStoreData){
       if(this.canTrustIctIssuer(oidc2VerificationResult)){
-        this.dataService.trustIctIssuer(this.selectedIdentity.controls.identity.value!, oidc2VerificationResult.identity?.issuer!);
+        let res = await this.dataService.saveTrustIctIssuer(this.selectedIdentity.controls.identity.value!, oidc2VerificationResult.identity?.issuer!);
+        if(res){
+          this.openSnackBar("trustworthy ict issuer stored");
+          return;
+        }
       }
     }
-    else{
-      this.openSnackBar(canStoreDataResult.errorMessage ?? "cannot store data");
-    }    
+    this.openSnackBar(canStoreDataResult.errorMessage ?? "something went wrong");       
   }
 
   /**

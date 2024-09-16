@@ -89,7 +89,7 @@ export class DataService {
    * @param issuer 
    * @returns 
    */
-  public async trustIctIssuer(identity: Identity, issuer: string):  Promise<TrustworthyIctIssuer | undefined>{
+  public async saveTrustIctIssuer(identity: Identity, issuer: string):  Promise<TrustworthyIctIssuer | undefined>{
     let { ictIdentity, privateKey } = this.getIctIdentityAndPrivateKey(identity);
     if(ictIdentity && privateKey){
       let messageId = await this.gmailApiService.saveTrustworthyIctIssuer(identity, issuer, ictIdentity, privateKey?.key, privateKey?.passphrase);
@@ -104,15 +104,17 @@ export class DataService {
    * load the trustworthy ict issuers on identities changed
    */
   private async loadTrustworthyIctIssuersOnIdentitiesChanged(){
+    let trustworthyIctIssuers : TrustworthyIctIssuer[] = [];
     for(let identity of this.identities){
       let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity);
       for(let newIssuer of newIssuers){
         let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity, [ newIssuer.issuer ]);
-        if(this.pgpService.signaturesAvailableAndValid(securityResult)){
-          this.oidc2VerificationService.trustIssuer(newIssuer.identity, newIssuer.issuer, newIssuer.messageId);
+        if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
+          trustworthyIctIssuers.push({identity: newIssuer.identity, issuer: newIssuer.issuer, messageId: newIssuer.messageId})
         }
       }      
     }
+    this.oidc2VerificationService.setTrustworthyIctIssuers(trustworthyIctIssuers);
   }
 
   /**
@@ -130,19 +132,21 @@ export class DataService {
    * loads the public key ownerships on identities changed
    */
    private async loadPublicKeyOwnershipsOnIdentitiesChanged(){
+    let publicKeys: PublicKeyOwnership[] = [];
     for(let identity of this.identities){
       let publicKeyOwnerships = await this.gmailApiService.loadPublicKeyOwnerships(identity);
       for(let publicKeyOwnership of publicKeyOwnerships){
         let securityResult = await this.pgpService.checkMimeMessageSecurity(publicKeyOwnership.mimeMessage, identity);
-        if(this.pgpService.signaturesAvailableAndValid(securityResult)){
+        if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
           let newPublicKeyOwnership  = { identity: publicKeyOwnership.identity,
             publicKeyOwner: publicKeyOwnership.publicKeyOwner,
             key: publicKeyOwnership.key,
             messageId: publicKeyOwnership.messageId};
-          this.pgpService.addPublicKeyOwnership(newPublicKeyOwnership);
+          publicKeys.push(newPublicKeyOwnership);
         }
       }      
     }
+    this.pgpService.setPublicKeyOwnerships(publicKeys);
   }
 
   /**
@@ -151,15 +155,17 @@ export class DataService {
    * @param publicKey 
    * @param sender
    */
-   public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string){   
+   public async savePublicKey(identity: Identity, publicKey: openpgp.PublicKey, sender: string): Promise<PublicKeyOwnership|undefined>{   
     let { ictIdentity, privateKey } = this.getIctIdentityAndPrivateKey(identity);
     if(ictIdentity && privateKey){
       let messageId = await this.gmailApiService.savePublicKey(identity, publicKey, sender, ictIdentity, privateKey?.key, privateKey?.passphrase);
       if(messageId){
         let publicKeyOwnership = {identity, messageId, key: publicKey, publicKeyOwner: sender};
         this.pgpService.addPublicKeyOwnership(publicKeyOwnership);
+        return publicKeyOwnership;
       }
     } 
+    return undefined;
   }
 
   /**
@@ -185,9 +191,8 @@ export class DataService {
       let loadedOnlinePrivateKeys = await this.gmailApiService.loadPrivateKeys(identity);
       
       for(let onlinePrivateKey of loadedOnlinePrivateKeys){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(onlinePrivateKey.mimeMessage, identity);
-        
-        if(this.pgpService.signaturesAvailableAndValid(securityResult)){                    
+        let securityResult = await this.pgpService.checkMimeMessageSecurity(onlinePrivateKey.mimeMessage, identity);        
+        if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){               
           onlinePrivateKeysTemp.push(onlinePrivateKey);
         }
       }      
@@ -206,6 +211,7 @@ export class DataService {
       let messageId = await this.gmailApiService.savePrivateKey(privateKey.identity, ictIdentity, privateKey.key, privateKey.passphrase);
       if(messageId){
         privateKey.messageId = messageId;
+        return privateKey;
       }
     }
     

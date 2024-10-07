@@ -7,10 +7,11 @@ import { Identity, IdentityService } from '../../../authentication';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { PgpService } from '../pgp/pgp.service';
 import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
-import { TrustworthyIctIssuer } from '../../types/trustworthy-ict-issuer';
+import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
+import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 
 @Injectable({
   providedIn: 'root',
@@ -28,10 +29,10 @@ export class DataService {
     private readonly gmailApiService: GmailApiService,
     private readonly oidc2VerificationService: Oidc2VerificationService
   ) {  
-    this.identityService.identitiesChanged.subscribe(() => this.loadDataOnIdentitiesChanged());
+    this.identityService.identitiesChanged.subscribe(() => this.loadData());
   }
 
-  private async loadDataOnIdentitiesChanged(){
+  private async loadData(){
     await this.loadTrustworthyIctIssuersOnIdentitiesChanged()
     this.loadPublicKeyOwnershipsOnIdentitiesChanged()
     this.loadOnlinePrivateKeysOnIdentitiesChanged();
@@ -100,21 +101,68 @@ export class DataService {
     return undefined;
   }
 
+
+  public readonly untrustedIctIssuersChanged = new EventEmitter<void>();
+
+  private _unturstedIctIssuers : TrustworthyIctIssuerExtended[] = [];
+
+  public get untrustedIctIssuers() : TrustworthyIctIssuerExtended[]{
+    return this._unturstedIctIssuers;
+  }
+
   /**
    * load the trustworthy ict issuers on identities changed
    */
   private async loadTrustworthyIctIssuersOnIdentitiesChanged(){
     let trustworthyIctIssuers : TrustworthyIctIssuer[] = [];
+    let untrustedIctIssuers : TrustworthyIctIssuerExtended[] = [];
     for(let identity of this.identities){
       let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity);
       for(let newIssuer of newIssuers){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity, [ newIssuer.issuer ]);
+        let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity);
+        console.log(securityResult);
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
           trustworthyIctIssuers.push({identity: newIssuer.identity, issuer: newIssuer.issuer, messageId: newIssuer.messageId})
+        }
+        else if(this.hasValidPopAndPGPSignature(securityResult)){
+          untrustedIctIssuers.push(newIssuer);
         }
       }      
     }
     this.oidc2VerificationService.setTrustworthyIctIssuers(trustworthyIctIssuers);
+    this._unturstedIctIssuers = [];
+    this._unturstedIctIssuers.push(...untrustedIctIssuers);
+    this.untrustedIctIssuersChanged.emit();
+  }
+
+  private hasValidPopAndPGPSignature(securityResult: MimeMessageSecurityResult): boolean{
+    let validPop = false;
+    let validPgpSignature = false;
+
+    for(let oidc2verificationResult of securityResult.oidc2VerificationResults){
+      if(oidc2verificationResult.popVerified){
+        validPop = true;
+        break;
+      }
+    }
+
+    for(let signatureVerificationResult of securityResult.signatureVerificationResults){
+      if(signatureVerificationResult.signatureVerified){
+        validPgpSignature = true;
+        break;
+      }
+    }
+
+    return validPgpSignature && validPop;
+  }
+
+  public async trustUntrustedIssuer(trustedIctIssuer: TrustworthyIctIssuerExtended){
+    let securityResult = await this.pgpService.checkMimeMessageSecurity(trustedIctIssuer.mimeMessage, trustedIctIssuer.identity, [trustedIctIssuer.issuer]);
+    if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(trustedIctIssuer.identity.claims.email!, securityResult)){
+      console.log('successfull')
+      this.oidc2VerificationService.trustIssuer( trustedIctIssuer.identity, trustedIctIssuer.issuer, trustedIctIssuer.messageId);
+      this.loadData();
+    }
   }
 
   /**

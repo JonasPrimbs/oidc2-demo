@@ -6,7 +6,7 @@ import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { FormControl, FormGroup } from '@angular/forms';
 import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
 import { _MatListItemGraphicBase } from '@angular/material/list';
-import { TrustworthyIctIssuer } from '../../types/trustworthy-ict-issuer';
+import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { DataService } from '../../services/data/data.service';
 
@@ -52,6 +52,10 @@ export class TrustworthyIctIssueManageComponent {
    * the trustworthy ict issuers
    */
   public trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
+
+  public get untrustedIctIssuers(): TrustworthyIctIssuerExtended[]{
+    return this.dataService.untrustedIctIssuers;
+  }
   
   /**
    * displayed columns of the trustworthy ict issuers table
@@ -66,6 +70,13 @@ export class TrustworthyIctIssueManageComponent {
       await this.dataService.saveTrustIctIssuer(this.trustIctIssuer.controls.identity.value, this.trustIctIssuer.controls.issuer.value);
       this.trustIctIssuer.controls.issuer.setValue("");
     }
+  }
+
+  /**
+   * trust an issuer
+   */
+   public async trustUntrustedIctIssuer(untrustedIctIssuer: TrustworthyIctIssuerExtended){
+    this.dataService.trustUntrustedIssuer(untrustedIctIssuer);
   }
 
   /**

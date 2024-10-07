@@ -1,13 +1,10 @@
 import { Component } from '@angular/core';
 
-import * as openpgp from 'openpgp';
-
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { FormControl, FormGroup } from '@angular/forms';
 import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
 import { _MatListItemGraphicBase } from '@angular/material/list';
 import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
-import { PgpService } from '../../services/pgp/pgp.service';
 import { DataService } from '../../services/data/data.service';
 
 @Component({
@@ -25,7 +22,6 @@ export class TrustworthyIctIssueManageComponent {
   constructor(
     private readonly identityService: IdentityService,
     private readonly oidc2VerivicationService: Oidc2VerificationService,
-    private readonly pgpService: PgpService,
     private readonly dataService: DataService,
   ) 
   {
@@ -53,6 +49,9 @@ export class TrustworthyIctIssueManageComponent {
    */
   public trustworthyIctIssuers: TrustworthyIctIssuer[] = [];
 
+  /**
+   * initial untrusted ict issuers
+   */
   public get untrustedIctIssuers(): TrustworthyIctIssuerExtended[]{
     return this.dataService.untrustedIctIssuers;
   }
@@ -61,16 +60,6 @@ export class TrustworthyIctIssueManageComponent {
    * displayed columns of the trustworthy ict issuers table
    */
   public displayedColumns: string[] = ['identity', 'issuer', 'delete'];
-
-  /**
-   * trust an issuer
-   */
-  public async trust(){
-    if(this.trustIctIssuer.controls.identity.value && this.trustIctIssuer.controls.issuer.value){
-      await this.dataService.saveTrustIctIssuer(this.trustIctIssuer.controls.identity.value, this.trustIctIssuer.controls.issuer.value);
-      this.trustIctIssuer.controls.issuer.setValue("");
-    }
-  }
 
   /**
    * trust an issuer

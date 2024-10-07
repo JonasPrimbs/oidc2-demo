@@ -1,26 +1,4 @@
-<h3>Add new trustworthy ICT issuer</h3>
-
-<form [formGroup]="trustIctIssuer">
-  <!-- Identities Input -->
-  <mat-form-field>
-    <mat-label>Identity</mat-label>
-    <mat-select matNativeControl autofocus formControlName="identity" required>
-      <mat-option *ngFor="let identity of identities" [value]="identity">
-        {{ identity.claims.name }} ({{ identity.claims.email }});
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field>
-    <mat-label>Issuer</mat-label>
-    <input matInput required formControlName="issuer">
-  </mat-form-field>
-
-  <button (click)="trust()" mat-stroked-button>
-    trust issuer
-  </button>
-</form>
-
+If you trust these untrusted ICT issuers other synchronized data can be loaded.
 <h3>Available untrusted ICT issuers ({{ untrustedIctIssuers.length }})</h3>
 
 <table mat-table [dataSource]="untrustedIctIssuers" class="trustworthy-issuers-table">

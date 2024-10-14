@@ -12,6 +12,7 @@ import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
 
 @Injectable({
   providedIn: 'root',
@@ -30,6 +31,7 @@ export class DataService {
     private readonly oidc2VerificationService: Oidc2VerificationService
   ) {  
     this.identityService.identitiesChanged.subscribe(() => this.loadData());
+    this.pgpService.privateKeysChanged.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
   }
 
   private async loadData(){
@@ -120,7 +122,6 @@ export class DataService {
       let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity);
       for(let newIssuer of newIssuers){
         let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity);
-        console.log(securityResult);
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
           trustworthyIctIssuers.push({identity: newIssuer.identity, issuer: newIssuer.issuer, messageId: newIssuer.messageId})
         }
@@ -159,7 +160,6 @@ export class DataService {
   public async trustUntrustedIssuer(trustedIctIssuer: TrustworthyIctIssuerExtended){
     let securityResult = await this.pgpService.checkMimeMessageSecurity(trustedIctIssuer.mimeMessage, trustedIctIssuer.identity, [trustedIctIssuer.issuer]);
     if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(trustedIctIssuer.identity.claims.email!, securityResult)){
-      console.log('successfull')
       this.oidc2VerificationService.trustIssuer( trustedIctIssuer.identity, trustedIctIssuer.issuer, trustedIctIssuer.messageId);
       this.loadData();
     }
@@ -185,16 +185,43 @@ export class DataService {
       let publicKeyOwnerships = await this.gmailApiService.loadPublicKeyOwnerships(identity);
       for(let publicKeyOwnership of publicKeyOwnerships){
         let securityResult = await this.pgpService.checkMimeMessageSecurity(publicKeyOwnership.mimeMessage, identity);
+        let mimeMessage = publicKeyOwnership.mimeMessage;
+        if(securityResult.encrypted && securityResult.decryptionSuccessful && securityResult.clearetextMimeMessage){
+          mimeMessage = securityResult.clearetextMimeMessage;
+        }
+        if(securityResult.encrypted && !securityResult.decryptionSuccessful){
+          continue; 
+        }
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
-          let newPublicKeyOwnership  = { identity: publicKeyOwnership.identity,
-            publicKeyOwner: publicKeyOwnership.publicKeyOwner,
-            key: publicKeyOwnership.key,
-            messageId: publicKeyOwnership.messageId};
-          publicKeys.push(newPublicKeyOwnership);
+          let newPublicKeyOwnership  = await this.getPublicKeyOwnership(mimeMessage, publicKeyOwnership.identity, publicKeyOwnership.messageId);
+          if(newPublicKeyOwnership){
+            publicKeys.push(newPublicKeyOwnership!);
+          }
         }
       }      
     }
     this.pgpService.setPublicKeyOwnerships(publicKeys);
+  }
+
+  /**
+   * create a public key ownership of a mime message
+   * @param mimeMessage 
+   * @param identity 
+   * @param mailId 
+   * @returns 
+   */
+  private async getPublicKeyOwnership(mimeMessage: MimeMessage, identity: Identity, mailId: string) : Promise<PublicKeyOwnership | undefined>{
+    let publicKeyOwnershipAttachment = mimeMessage.payload.attachments.find(a => a.name === this.gmailApiService.publicKeyAttachmentFileName);
+    if(publicKeyOwnershipAttachment){
+      let publicKey = await openpgp.readKey({ armoredKey: publicKeyOwnershipAttachment.decodedText() });
+      return { 
+        identity: identity, 
+        publicKeyOwner: mimeMessage.payload.subject ?? '',
+        key: publicKey, 
+        messageId: mailId,
+      };
+    }
+    return undefined;
   }
 
   /**

@@ -10,6 +10,8 @@ export interface PublicKeyOwnership{
   readonly key: openpgp.PublicKey;
 }
 
-export interface PublicKeyOwnershipExtended extends PublicKeyOwnership{
+export interface PublicKeyOwnershipExtended {
+  readonly identity: Identity;
+  readonly messageId: string;
   readonly mimeMessage: MimeMessage;
 }

@@ -214,15 +214,24 @@ export class GmailApiService {
    * @param labelName 
    * @returns 
    */
-  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string, explanation: string): Promise<MessageResult | undefined>{    
+  public async saveData(identity: Identity, subject: string, attachments: AttachmentFile[], labelName: string, ictIdentity: Identity, privateKey: openpgp.PrivateKey, passphrase: string, explanation: string, encrypted: boolean = false): Promise<MessageResult | undefined>{    
     let emailBody = new EmailContent(explanation);
     const email = new Email(identity, identity.claims.email ?? "", subject, [emailBody, ...attachments]);
 
     const ictPopAttachments = await this.oidc2AttachmentService.generateIctPopAttachments([ictIdentity], email.receiver, privateKey);
 
     ictPopAttachments.forEach(a => email.parts.push(a));
-    
-    const mimeMessage = await email.toRawMimeString(privateKey, passphrase);
+
+    let mimeMessage: string = "";
+    if(encrypted){
+      let encryptionKey = await openpgp.decryptKey({privateKey, passphrase});      
+      mimeMessage = await email.toRawEncryptedMimeString([encryptionKey], privateKey, passphrase)
+    }
+    else{
+      mimeMessage = await email.toRawMimeString(privateKey, passphrase);
+    }
+    console.log(mimeMessage);
+
     let message = await this.importMail(identity, mimeMessage);
     if(!message){
       return undefined;
@@ -297,7 +306,8 @@ export class GmailApiService {
     let explanation = `The attachment ${this.publicKeyAttachmentFileName} contains the PGP-public-key of ${sender}. 
     After deleting this mail you can't encrypt a mail for ${sender} with the Key 0x${publicKey.getKeyID().toHex().toUpperCase()}.`;
     const attachment = new AttachmentFile(this.publicKeyAttachmentFileName, publicKey.armor(), "text/plain");
-    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName, ictIdentity, privateKey, passphrase, explanation);
+    let message = await this.saveData(identity, sender, [attachment], this.publicKeyLabelName, ictIdentity, privateKey, passphrase, explanation, true);
+    console.log(message);
     return message?.id;
   }
 
@@ -316,17 +326,11 @@ export class GmailApiService {
       let message = await this.getMessage(identity, mail.id);
       if(message?.raw){
         let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
-        let publicKeyOwnershipAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === this.publicKeyAttachmentFileName);
-        for(let attachment of publicKeyOwnershipAttachments){
-          let publicKey = await openpgp.readKey({ armoredKey: attachment.decodedText() })
-          publicKeyOwnerships.push({ 
-            identity: identity, 
-            publicKeyOwner: parsedMimeMessage.payload.subject ?? '',
-            key: publicKey, 
-            messageId: mail.id,
-            mimeMessage: parsedMimeMessage,
-          });
-        }
+        publicKeyOwnerships.push({ 
+          identity: identity, 
+          messageId: mail.id,
+          mimeMessage: parsedMimeMessage,
+        });
       }
     }
     return publicKeyOwnerships;

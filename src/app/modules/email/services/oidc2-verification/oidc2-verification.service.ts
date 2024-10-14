@@ -26,9 +26,16 @@ export class Oidc2VerificationService {
 
   readonly openIdConfigurationUriPath = '/.well-known/openid-configuration';
 
+  readonly trustworthyRootIctIssuerKey = "TRUSTWORTHY_ROOT_ICT_ISSUER";
+
   constructor(
     private readonly http: HttpClient,
   ){
+    let issuers = localStorage.getItem(this.trustworthyRootIctIssuerKey);
+    if(issuers){
+      let parsedIssuers = JSON.parse(issuers) as string[];
+      this._trustworthyRootIssuers = parsedIssuers;
+    }
   }
 
   /**
@@ -46,6 +53,18 @@ export class Oidc2VerificationService {
    */
   public get trustworthyIssuers(){
     return [...this._trustworthyIssuers];
+  }
+
+  /**
+   * Internal representation of the trustworthy root issuers
+   */
+  private _trustworthyRootIssuers: string[] = [];
+
+  /**
+   * the trustworthy root ICT issuers
+   */
+   public get trustworthyRootIssuers(){
+    return [...this._trustworthyRootIssuers];
   }
 
   /**
@@ -89,6 +108,15 @@ export class Oidc2VerificationService {
   public setTrustworthyIctIssuers(trustworthyIctIssuers: TrustworthyIctIssuer[]){
     this._trustworthyIssuers = [...trustworthyIctIssuers];
     this.trustworthyIssuersChanged.emit();
+  }
+
+  /**
+   * add a new root ICT issuer
+   * @param issuer 
+   */
+  public addRootIctIssuer(issuer: string){
+    this._trustworthyRootIssuers.push(issuer);
+    localStorage.setItem(this.trustworthyRootIctIssuerKey, JSON.stringify(this._trustworthyRootIssuers));
   }
 
 

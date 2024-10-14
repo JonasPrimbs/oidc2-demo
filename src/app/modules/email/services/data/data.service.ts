@@ -121,7 +121,7 @@ export class DataService {
     for(let identity of this.identities){
       let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity);
       for(let newIssuer of newIssuers){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity);
+        let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity, this.oidc2VerificationService.trustworthyRootIssuers);
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
           trustworthyIctIssuers.push({identity: newIssuer.identity, issuer: newIssuer.issuer, messageId: newIssuer.messageId})
         }
@@ -161,6 +161,7 @@ export class DataService {
     let securityResult = await this.pgpService.checkMimeMessageSecurity(trustedIctIssuer.mimeMessage, trustedIctIssuer.identity, [trustedIctIssuer.issuer]);
     if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(trustedIctIssuer.identity.claims.email!, securityResult)){
       this.oidc2VerificationService.trustIssuer( trustedIctIssuer.identity, trustedIctIssuer.issuer, trustedIctIssuer.messageId);
+      this.oidc2VerificationService.addRootIctIssuer(trustedIctIssuer.issuer);
       this.loadData();
     }
   }

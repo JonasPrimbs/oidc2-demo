@@ -13,3 +13,12 @@ export interface MimeMessageSecurityResult{
   readonly decryptionErrorMessage?: string;
   readonly publicKey?: openpgp.PublicKey;
 }
+
+export interface DecryptedAndVerifiedMimeMessage{
+  readonly encrypted: boolean;
+  readonly clearetextMimeMessage: MimeMessage;
+  readonly decryptionSuccessful?: boolean;
+  readonly decryptionErrorMessage?: string;
+  readonly publicKey?: openpgp.PublicKey;
+  readonly signatures: openpgp.VerificationResult[];
+}

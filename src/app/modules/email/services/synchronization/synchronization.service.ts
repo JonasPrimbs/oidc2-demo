@@ -1,12 +1,10 @@
 import * as openpgp from 'openpgp';
 
-import { HttpClient } from '@angular/common/http';
 import { EventEmitter, Injectable } from '@angular/core';
-
 import { Identity, IdentityService } from '../../../authentication';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { PgpService } from '../pgp/pgp.service';
-import { Oidc2VerificationService } from '../pgp-key-authentication/pgp-key-authentication.service';
+import { PgpKeyAuthenticationService } from '../pgp-key-authentication/pgp-key-authentication.service';
 import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
@@ -28,7 +26,7 @@ export class SynchronizationService {
     private readonly identityService: IdentityService,
     private readonly pgpService: PgpService,
     private readonly gmailApiService: GmailApiService,
-    private readonly oidc2VerificationService: Oidc2VerificationService
+    private readonly oidc2VerificationService: PgpKeyAuthenticationService
   ) {  
     this.identityService.identitiesChanged.subscribe(() => this.loadData());
     this.pgpService.privateKeysChanged.subscribe(() => this.loadPublicKeyOwnershipsOnIdentitiesChanged());
@@ -121,7 +119,7 @@ export class SynchronizationService {
     for(let identity of this.identities){
       let newIssuers = await this.gmailApiService.loadTrustworthyIctIssuers(identity);
       for(let newIssuer of newIssuers){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(newIssuer.mimeMessage, newIssuer.identity, this.oidc2VerificationService.trustworthyRootIssuers);
+        let securityResult = await this.oidc2VerificationService.authenticatePgpKey(newIssuer.mimeMessage, newIssuer.identity, this.oidc2VerificationService.trustworthyRootIssuers);
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){
           trustworthyIctIssuers.push({identity: newIssuer.identity, issuer: newIssuer.issuer, messageId: newIssuer.messageId})
         }
@@ -158,7 +156,7 @@ export class SynchronizationService {
   }
 
   public async trustUntrustedIssuer(trustedIctIssuer: TrustworthyIctIssuerExtended){
-    let securityResult = await this.pgpService.checkMimeMessageSecurity(trustedIctIssuer.mimeMessage, trustedIctIssuer.identity, [trustedIctIssuer.issuer]);
+    let securityResult = await this.oidc2VerificationService.authenticatePgpKey(trustedIctIssuer.mimeMessage, trustedIctIssuer.identity, [trustedIctIssuer.issuer]);
     if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(trustedIctIssuer.identity.claims.email!, securityResult)){
       this.oidc2VerificationService.trustIssuer( trustedIctIssuer.identity, trustedIctIssuer.issuer, trustedIctIssuer.messageId);
       this.oidc2VerificationService.addRootIctIssuer(trustedIctIssuer.issuer);
@@ -185,7 +183,7 @@ export class SynchronizationService {
     for(let identity of this.identities){
       let publicKeyOwnerships = await this.gmailApiService.loadPublicKeyOwnerships(identity);
       for(let publicKeyOwnership of publicKeyOwnerships){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(publicKeyOwnership.mimeMessage, identity);
+        let securityResult = await this.oidc2VerificationService.authenticatePgpKey(publicKeyOwnership.mimeMessage, identity);
         let mimeMessage = publicKeyOwnership.mimeMessage;
         if(securityResult.encrypted && securityResult.decryptionSuccessful && securityResult.clearetextMimeMessage){
           mimeMessage = securityResult.clearetextMimeMessage;
@@ -267,7 +265,7 @@ export class SynchronizationService {
       let loadedOnlinePrivateKeys = await this.gmailApiService.loadPrivateKeys(identity);
       
       for(let onlinePrivateKey of loadedOnlinePrivateKeys){
-        let securityResult = await this.pgpService.checkMimeMessageSecurity(onlinePrivateKey.mimeMessage, identity);        
+        let securityResult = await this.oidc2VerificationService.authenticatePgpKey(onlinePrivateKey.mimeMessage, identity);        
         if(this.pgpService.signaturesAvailableAndValid(securityResult) && this.pgpService.isMailFromSender(identity.claims.email!, securityResult)){               
           onlinePrivateKeysTemp.push(onlinePrivateKey);
         }

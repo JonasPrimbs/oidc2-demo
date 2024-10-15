@@ -1,22 +1,23 @@
-import { EventEmitter, Injectable } from "@angular/core";
-import { MimeMessage } from "../../classes/mime-message/mime-message";
-
 import * as jose from 'jose';
+import * as openpgp from 'openpgp';
+
+import { MimeMessage } from "../../classes/mime-message/mime-message";
+import { EventEmitter, Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import { e2ePoPTokenVerify, E2EPoPVerifyOptions, ictVerify, ICTVerifyOptions } from "oidc-squared";
 import { Oidc2Identity } from "../../types/oidc2-identity";
 import { Oidc2IdentityVerificationResult as Oidc2IdentityVerificationResult } from "../../types/oidc2-identity-verification-result.interface";
-import { Identity, IdentityService } from "src/app/modules/authentication";
-import { GmailApiService } from "../gmail-api/gmail-api.service";
+import { Identity } from "src/app/modules/authentication";
 import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
-
-
+import { PgpService } from "../pgp/pgp.service";
+import { DecryptedAndVerifiedMimeMessage, MimeMessageSecurityResult } from "../../types/mime-message-security-result.interface";
+import { SignatureVerificationResult } from "../../types/signature-verification-result.interface";
 
 @Injectable({
   providedIn: 'root',
 })
-export class Oidc2VerificationService {
+export class PgpKeyAuthenticationService {
 
   readonly beginIct = '-----BEGIN IDENTITY CERTIFICATION TOKEN-----';
   readonly endIct = '-----END IDENTITY CERTIFICATION TOKEN-----';
@@ -30,6 +31,7 @@ export class Oidc2VerificationService {
 
   constructor(
     private readonly http: HttpClient,
+    private readonly pgpService: PgpService,
   ){
     let issuers = localStorage.getItem(this.trustworthyRootIctIssuerKey);
     if(issuers){
@@ -119,6 +121,41 @@ export class Oidc2VerificationService {
     localStorage.setItem(this.trustworthyRootIctIssuerKey, JSON.stringify(this._trustworthyRootIssuers));
   }
 
+  /**
+   * checks the security of a mime message.
+   * decrypts the message if encrypted.
+   * verifies signatures and oidc2identity
+   * authenticates the PGP key
+   * @param mimeMessage 
+   * @returns 
+   */
+   public async authenticatePgpKey(mimeMessage: MimeMessage, verifierIdentity: Identity, additionalTrustworthyIctIssuers?: string[]) : Promise<MimeMessageSecurityResult>{
+    
+    // decrypt and verify the PGP signature
+    let decryptedMimeMessage = await this.pgpService.decryptAndVerifyMimeMessage(mimeMessage);
+    
+    // find the ICT-PoP pairs
+    let ictPopPairs = this.getIctPopPairs(decryptedMimeMessage.clearetextMimeMessage);
+
+    // verify OIDC²-identity
+    let oidc2VerificationResults = await this.verifyOidc2Identity(ictPopPairs, verifierIdentity, mimeMessage.payload.date, additionalTrustworthyIctIssuers);
+    
+    // authenticate the PGP key
+    let verifiedSignatures = await this.authenticatePgpKeyAndVerifySignatures(decryptedMimeMessage, oidc2VerificationResults);
+        
+    let result: MimeMessageSecurityResult = {
+      encrypted: decryptedMimeMessage.encrypted,
+      decryptionSuccessful: decryptedMimeMessage.decryptionSuccessful,
+      decryptionErrorMessage: decryptedMimeMessage.decryptionErrorMessage,
+      oidc2VerificationResults,
+      signatureVerificationResults: verifiedSignatures,
+      clearetextMimeMessage: decryptedMimeMessage.clearetextMimeMessage,
+      publicKey: decryptedMimeMessage.publicKey,
+    };
+
+    return result;
+  }
+
 
   /**
    * Extract the ICT/PoP-pairs of a MimeMessage
@@ -175,110 +212,219 @@ export class Oidc2VerificationService {
    * @param verificationDate 
    * @returns 
    */
-  public async verifyOidc2Identity(ictPopPair: {ict: string, pop: string}, verifierIdentity: Identity, verificationDate?: Date, additionalTrustworthyIssuers?: string[]) : Promise<Oidc2IdentityVerificationResult> {
+  private async verifyOidc2Identity(ictPopPairs: {ict: string, pop: string}[], verifierIdentity: Identity, verificationDate?: Date, additionalTrustworthyIssuers?: string[]) : Promise<Oidc2IdentityVerificationResult[]> {
     let ictVerified: boolean = false;
     let popVerified: boolean = false;
     let errorMessage: string | undefined;
     let oidc2identity: Oidc2Identity | undefined;
 
-    if(!ictPopPair){
+    if(ictPopPairs.length === 0){
       let result: Oidc2IdentityVerificationResult = {
         ictVerified: false,
         popVerified: false,
         errorMessage: 'no OIDC² available',
       }
       
-      return result;
+      return [ result ];
     }
 
-    // decoded ict for accessing issuer and key-id. NOT VERIFIED!
-    let decodedIctPayload = await jose.decodeJwt(ictPopPair.ict);
-    let decodedIctHeader = await jose.decodeProtectedHeader(ictPopPair.ict);
+    let oidc2verificationResults: Oidc2IdentityVerificationResult[] = [];
 
-    // lookup the public JWK of the ICT
-    let openIdConfigurationUri = decodedIctPayload.iss + this.openIdConfigurationUriPath;
-    let openIdConfiguration = await firstValueFrom(this.http.get<Record<string,any>>(openIdConfigurationUri));
+    for(let ictPopPair of ictPopPairs){ 
+      // decoded ict for accessing issuer and key-id. NOT VERIFIED!
+      let decodedIctPayload = await jose.decodeJwt(ictPopPair.ict);
+      let decodedIctHeader = await jose.decodeProtectedHeader(ictPopPair.ict);
 
-    let jwksUri = openIdConfiguration['jwks_uri'];
-    let jwks = await firstValueFrom(this.http.get<Record<string,any[]>>(jwksUri));
-    let publicIctJWK = jwks['keys'].find(k => k.kid === decodedIctHeader.kid);
+      // lookup the public JWK of the ICT
+      let openIdConfigurationUri = decodedIctPayload.iss + this.openIdConfigurationUriPath;
+      let openIdConfiguration = await firstValueFrom(this.http.get<Record<string,any>>(openIdConfigurationUri));
 
-    // public key for ICT verification
-    let ictPublicKey = await jose.importJWK(publicIctJWK)
+      let jwksUri = openIdConfiguration['jwks_uri'];
+      let jwks = await firstValueFrom(this.http.get<Record<string,any[]>>(jwksUri));
+      let publicIctJWK = jwks['keys'].find(k => k.kid === decodedIctHeader.kid);
 
-    // verify options
-    let verifyIctOptions: ICTVerifyOptions = {}; 
-    verifyIctOptions.requiredContext = 'email';
-    verifyIctOptions.clockTolerance = 30;
-    if(verificationDate){
-      verifyIctOptions.currentDate = verificationDate;
-    }
+      // public key for ICT verification
+      let ictPublicKey = await jose.importJWK(publicIctJWK)
 
-    try{
-      let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
-
-      let trustworthyIctIssuer = (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
-      
-      if(additionalTrustworthyIssuers){
-        trustworthyIctIssuer = [...trustworthyIctIssuer, ...additionalTrustworthyIssuers];
-      }
-
-      // is ICT issuer trustworthy?
-      if(ictVerificationResult.payload.iss && trustworthyIctIssuer.includes(ictVerificationResult.payload.iss)){
-        ictVerified = true;
-      }
-      else{
-        errorMessage = `ICT issuer ${ictVerificationResult.payload.iss} is not trustworthy`;
-      }
-            
-      let publicPoPJWK = ictVerificationResult.payload.cnf.jwk;     
-
-      // key have to be extractable (e2ePoPTokenVerify creates a thumbprint of the key)
-      let E2EPoPPublicKey = await crypto.subtle.importKey('jwk', publicPoPJWK, { name: "ECDSA", namedCurve: "P-384", }, true, ['verify']);
-
-      // e2ePoPTokenOption
-      let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
-      verifyE2EPoPTokenOptions.requiredClaims = ['pgp_fingerprint']
-      verifyE2EPoPTokenOptions.clockTolerance = 30;
+      // verify options
+      let verifyIctOptions: ICTVerifyOptions = {}; 
+      verifyIctOptions.requiredContext = 'email';
+      verifyIctOptions.clockTolerance = 30;
       if(verificationDate){
-        verifyE2EPoPTokenOptions.currentDate = verificationDate;
+        verifyIctOptions.currentDate = verificationDate;
       }
 
-      let popVerificationResult = await e2ePoPTokenVerify(ictPopPair.pop, E2EPoPPublicKey, verifyE2EPoPTokenOptions);
+      try{
+        let ictVerificationResult = await ictVerify(ictPopPair.ict, ictPublicKey, verifyIctOptions);
 
-      // no exception: E2EPoPToken verification successful
-      popVerified = true; 
+        let trustworthyIctIssuer = (await this.getTrustworthyIssuers(verifierIdentity)).map(t => t.issuer);
+        
+        if(additionalTrustworthyIssuers){
+          trustworthyIctIssuer = [...trustworthyIctIssuer, ...additionalTrustworthyIssuers];
+        }
 
-      let ictJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.ict}`;
-      let uriEncodedPopPublicKey = encodeURIComponent(JSON.stringify(publicPoPJWK));
-      let popJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.pop}&publicKey=${uriEncodedPopPublicKey}`;
+        // is ICT issuer trustworthy?
+        if(ictVerificationResult.payload.iss && trustworthyIctIssuer.includes(ictVerificationResult.payload.iss)){
+          ictVerified = true;
+        }
+        else{
+          errorMessage = `ICT issuer ${ictVerificationResult.payload.iss} is not trustworthy`;
+        }
+              
+        let publicPoPJWK = ictVerificationResult.payload.cnf.jwk;     
 
-      // create oidc2-identity
-      oidc2identity = {
-        email: ictVerificationResult.payload['email'] as string,
-        emailVerified: ictVerificationResult.payload['email_verified'] as boolean,
-        issuer: ictVerificationResult.payload.iss ?? '',
-        preferred_username: ictVerificationResult.payload['preferred_username'] as string,
-        pgpFingerprint: popVerificationResult.payload['pgp_fingerprint'] as string,
-        ictJwtIoUrl: ictJwtIoUrl,
-        ict: ictPopPair.ict,
-        popJwtIoUrl: popJwtIoUrl,
-        pop: ictPopPair.pop,
+        // key have to be extractable (e2ePoPTokenVerify creates a thumbprint of the key)
+        let E2EPoPPublicKey = await crypto.subtle.importKey('jwk', publicPoPJWK, { name: "ECDSA", namedCurve: "P-384", }, true, ['verify']);
+
+        // e2ePoPTokenOption
+        let verifyE2EPoPTokenOptions: E2EPoPVerifyOptions = { subject: ictVerificationResult.payload.sub ?? ''};
+        verifyE2EPoPTokenOptions.requiredClaims = ['pgp_fingerprint']
+        verifyE2EPoPTokenOptions.clockTolerance = 30;
+        if(verificationDate){
+          verifyE2EPoPTokenOptions.currentDate = verificationDate;
+        }
+
+        let popVerificationResult = await e2ePoPTokenVerify(ictPopPair.pop, E2EPoPPublicKey, verifyE2EPoPTokenOptions);
+
+        // no exception: E2EPoPToken verification successful
+        popVerified = true; 
+
+        let ictJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.ict}`;
+        let uriEncodedPopPublicKey = encodeURIComponent(JSON.stringify(publicPoPJWK));
+        let popJwtIoUrl = `https://jwt.io/#debugger-io?token=${ictPopPair.pop}&publicKey=${uriEncodedPopPublicKey}`;
+
+        // create oidc2-identity
+        oidc2identity = {
+          email: ictVerificationResult.payload['email'] as string,
+          emailVerified: ictVerificationResult.payload['email_verified'] as boolean,
+          issuer: ictVerificationResult.payload.iss ?? '',
+          preferred_username: ictVerificationResult.payload['preferred_username'] as string,
+          pgpFingerprint: popVerificationResult.payload['pgp_fingerprint'] as string,
+          ictJwtIoUrl: ictJwtIoUrl,
+          ict: ictPopPair.ict,
+          popJwtIoUrl: popJwtIoUrl,
+          pop: ictPopPair.pop,
+        }
       }
-    }
-    catch(err){
-      if(err instanceof Error){
-        errorMessage = err.message;
+      catch(err){
+        if(err instanceof Error){
+          errorMessage = err.message;
+        }
       }
+
+      let oidc2verificationResult : Oidc2IdentityVerificationResult = {
+        ictVerified,
+        popVerified,
+        identity: oidc2identity,
+        errorMessage,
+      }
+
+      oidc2verificationResults.push(oidc2verificationResult);
     }
 
-    let oidc2verificationResult : Oidc2IdentityVerificationResult = {
-      ictVerified,
-      popVerified,
-      identity: oidc2identity,
-      errorMessage,
-    }
-
-    return oidc2verificationResult;
+    return oidc2verificationResults;
   }
+
+    /**
+   * validates openpgp signature verification results against oidc2 identity verification results
+   * @param signatures 
+   * @param oidc2VerificationResults 
+   * @param publicKey 
+   * @returns 
+   */
+    private async authenticatePgpKeyAndVerifySignatures(decryped: DecryptedAndVerifiedMimeMessage, oidc2VerificationResults: Oidc2IdentityVerificationResult[]): Promise<SignatureVerificationResult[]>{  
+    let signatureVerificationResults: SignatureVerificationResult[] = [];
+
+    // no public key available
+    if(!decryped.publicKey){
+      signatureVerificationResults.push({
+        pgpKeyAuthenticated: false,
+        signatureVerified: false,
+      });
+
+      return signatureVerificationResults;
+    }
+
+    let publicKey : openpgp.PublicKey = decryped.publicKey!;
+    let publicKeyFingerprint = publicKey.getFingerprint(); 
+    let publicKeyOnKeyServer = await this.pgpService.searchPublicKeyOnKeyServer(publicKey.getFingerprint());
+
+
+    for(let result of decryped.signatures){
+      let signatureKeyId = this.pgpService.getPrettyKeyID(result.keyID); 
+
+      try{
+        await result.verified;
+        let signature = await result.signature;
+        
+        // find oidc2 result with matching pgp-fingerprint
+        let matchingOidc2Result = oidc2VerificationResults.find(r => r.ictVerified && r.popVerified && r.identity && r.identity.pgpFingerprint && r.identity.pgpFingerprint.toLowerCase() === publicKeyFingerprint.toLowerCase());
+
+        let pgpKeyAuthenticated = matchingOidc2Result !== undefined;
+
+        // check revocation
+        if(publicKeyOnKeyServer && await publicKeyOnKeyServer.isRevoked()){
+          signatureVerificationResults.push({
+            pgpKeyAuthenticated,
+            signatureVerified: false,
+            signatureErrorMessage: 'public key is revoked',
+            oidc2Identity: undefined,
+            keyId: signatureKeyId,
+            signedAt: undefined
+          });          
+        }
+        else if(matchingOidc2Result){
+          // signature verification successful and oidc2 chain verification successful
+          signatureVerificationResults.push({
+            pgpKeyAuthenticated,
+            signatureVerified: true,
+            oidc2Identity: matchingOidc2Result.identity,
+            keyId: signatureKeyId,
+            signedAt: signature.packets[0].created ?? undefined
+          });
+        }
+        else{
+          let errorMessage = '';
+          if(oidc2VerificationResults.length === 0){
+            errorMessage = 'no OIDC² identity available';
+          }
+          else{
+            errorMessage = `no matching OIDC² identity for PGP-fingerprint ${publicKeyFingerprint.toUpperCase()} found. Key is unauthenticated`;
+          }
+          
+          signatureVerificationResults.push({
+            pgpKeyAuthenticated,
+            signatureVerified: true,
+            oidc2ErrorMessage: errorMessage,
+            keyId: signatureKeyId,
+          });
+        }              
+      }
+      catch(ex){
+        // signature verification failed
+        let errorMessage = 'invalid signature';
+        if(ex instanceof Error){
+          errorMessage = ex.message;
+        }
+        signatureVerificationResults.push({
+          pgpKeyAuthenticated: false,
+          signatureVerified: false,
+          signatureErrorMessage: errorMessage,
+        });
+      }
+    }
+
+    // mail is neither encrypted nor signed
+    if(signatureVerificationResults.length === 0){
+      let noSignatureResult: SignatureVerificationResult = {
+        pgpKeyAuthenticated: false,
+        signatureVerified: false,
+        signatureErrorMessage: 'no signature available',
+      };
+      signatureVerificationResults.push(noSignatureResult);
+    }
+
+    return signatureVerificationResults;
+  }
+
 }

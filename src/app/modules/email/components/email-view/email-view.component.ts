@@ -6,7 +6,7 @@ import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 import { EmailService } from '../../services/email/email.service';
-import { Oidc2VerificationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
+import { PgpKeyAuthenticationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
@@ -38,12 +38,12 @@ export class EmailViewComponent {
     private readonly emailService: EmailService,
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
-    private readonly oidc2VerificationService: Oidc2VerificationService,
+    private readonly pgpKeyAuthenticationService: PgpKeyAuthenticationService,
     private readonly dataService: SynchronizationService,
   )
   { 
     this.identityService.identitiesChanged.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());
-    this.oidc2VerificationService.trustworthyIssuersChanged.subscribe(() => this.evaluateMimeMessageSecurity());
+    this.pgpKeyAuthenticationService.trustworthyIssuersChanged.subscribe(() => this.evaluateMimeMessageSecurity());
     this.pgpService.privateKeysChanged.subscribe(() => this.evaluateMimeMessageSecurity());
     this.selectedIdentity.controls.identity.valueChanges.subscribe(() => this.onUserChanges());
   } 
@@ -82,7 +82,7 @@ export class EmailViewComponent {
    */
   public async evaluateMimeMessageSecurity(): Promise<void> {
     if(this.originMimeMessage && this.selectedIdentity.controls.identity.value){
-      this.mimeMessageSecurity = await this.pgpService.checkMimeMessageSecurity(this.originMimeMessage, this.selectedIdentity.controls.identity.value);
+      this.mimeMessageSecurity = await this.pgpKeyAuthenticationService.authenticatePgpKey(this.originMimeMessage, this.selectedIdentity.controls.identity.value);
       this.mimeMessage = this.mimeMessageSecurity.clearetextMimeMessage;
     }
   }

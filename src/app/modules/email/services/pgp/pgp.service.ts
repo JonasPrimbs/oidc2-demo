@@ -1,12 +1,8 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { Identity, IdentityService } from 'src/app/modules/authentication';
+import { Identity } from 'src/app/modules/authentication';
 import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
-import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
-import { SignatureVerificationResult } from '../../types/signature-verification-result.interface';
-import { GmailApiService } from '../gmail-api/gmail-api.service';
-import { Oidc2VerificationService } from '../pgp-key-authentication/pgp-key-authentication.service';
-import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
+import { DecryptedAndVerifiedMimeMessage, MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 
@@ -18,7 +14,6 @@ import * as openpgp from 'openpgp';
 export class PgpService {
 
   constructor(
-    private readonly oidc2VerificationService: Oidc2VerificationService,
   ) { }
 
   // Key Management:
@@ -178,36 +173,29 @@ export class PgpService {
     };
   }
 
-  // Message Security Check
+  // decrypt and verify MIME message
 
   /**
-   * checks the security of a mime message.
-   * decrypts the message if encrypted.
-   * verifies signatures and oidc2identity
+   * decrypts a MIME-message
    * @param mimeMessage 
    * @returns 
    */
-  public async checkMimeMessageSecurity(mimeMessage: MimeMessage, verifierIdentity: Identity, additionalTrustworthyIctIssuers?: string[]) : Promise<MimeMessageSecurityResult>{
-    let verifiedSignatures: SignatureVerificationResult[] = [];
-    let processingMimeMessage: MimeMessage = mimeMessage;
+  public async decryptAndVerifyMimeMessage(mimeMessage: MimeMessage): Promise<DecryptedAndVerifiedMimeMessage>{
+    let encryptedMessage = mimeMessage.payload.encryptedContent()?.body;
 
-    let publicKey: openpgp.PublicKey | undefined;
-    let encrypted: boolean = false;
-    let decryptionSuccessful: boolean = false;
-    let decryptionErrorMessage: string | undefined;
-
+    let encrypted : boolean = false;
+    let decryptionSuccessful :  boolean | undefined = undefined; 
+    let decryptionErrorMessage : string | undefined = undefined;
+    let clearetextMimeMessage : MimeMessage = mimeMessage;
     let signatures : openpgp.VerificationResult[] = [];
-    
-    let encryptedMessage = processingMimeMessage.payload.encryptedContent()?.body;
+    let publicKey : openpgp.PublicKey | undefined = undefined;
 
-    // mail is encrypted
+    // decryption
     if(encryptedMessage){
-      
-      // decrypt
+      encrypted = true;
       let decryptedKeys = await Promise.all(await this.privateKeys.map(k => openpgp.decryptKey({privateKey: k.key, passphrase: k.passphrase})));
       let message = await openpgp.readMessage({armoredMessage: encryptedMessage});
       try{
-        encrypted = true;
         let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys});
         decryptionSuccessful = true;
 
@@ -219,10 +207,10 @@ export class PgpService {
           decryptedMimeContent = `Date: ${mimeMessage.payload.date.toISOString()}\r\n` + decryptedMimeContent;
         }
         let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMimeContent);      
-        processingMimeMessage = new MimeMessage(decryptedMimeMessagePart);
+        clearetextMimeMessage = new MimeMessage(decryptedMimeMessagePart);
         
         //verify signatures in the encrypted message
-        let armoredKey = processingMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+        let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
         if(armoredKey){
           publicKey = await openpgp.readKey({armoredKey});
           message = await openpgp.readMessage({armoredMessage: encryptedMessage});
@@ -235,11 +223,11 @@ export class PgpService {
           decryptionErrorMessage = err.message;
         }
       }
-    }   
+    }
 
-    let armoredKey = processingMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
-    let armoredSignature = processingMimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
-    let signedContent = processingMimeMessage.payload.signedContent()?.raw;
+    let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+    let armoredSignature = clearetextMimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
+    let signedContent = clearetextMimeMessage.payload.signedContent()?.raw;
 
     // cleartext mail is signed
     if(armoredKey && armoredSignature && signedContent){
@@ -250,104 +238,14 @@ export class PgpService {
       signatures.push(...verifyMessageResult.signatures);
     }
 
-    let ictPopPairs = this.oidc2VerificationService.getIctPopPairs(processingMimeMessage);
-    let oidc2VerificationResults = await Promise.all(ictPopPairs.map(pair => this.oidc2VerificationService.verifyOidc2Identity(pair, verifierIdentity, mimeMessage.payload.date, additionalTrustworthyIctIssuers)));
-    
-    if(publicKey){
-      verifiedSignatures = await this.verifyPgpSignatures(signatures, oidc2VerificationResults, publicKey!);
-    }
-
-    // mail is neither encrypted nor signed
-    if(verifiedSignatures.length === 0){
-      let noSignatureResult: SignatureVerificationResult = {
-        signatureVerified: false,
-        signatureErrorMessage: 'no signature available',
-      };
-      verifiedSignatures.push(noSignatureResult);
-    }
-
-    let result: MimeMessageSecurityResult = {
+    return {
+      clearetextMimeMessage,
       encrypted,
       decryptionSuccessful,
       decryptionErrorMessage,
-      oidc2VerificationResults,
-      signatureVerificationResults: verifiedSignatures,
-      clearetextMimeMessage: processingMimeMessage,
-      publicKey: publicKey,
+      signatures,
+      publicKey,
     };
-
-    return result;
-  }
-
-  /**
-   * validates openpgp signature verification results against oidc2 identity verification results
-   * @param signatures 
-   * @param oidc2VerificationResults 
-   * @param publicKey 
-   * @returns 
-   */
-  private async verifyPgpSignatures(signatures: openpgp.VerificationResult[], oidc2VerificationResults: Oidc2IdentityVerificationResult[], publicKey: openpgp.PublicKey): Promise<SignatureVerificationResult[]>{  
-    let signatureVerificationResults: SignatureVerificationResult[] = [];
-    let publicKeyOnKeyserver = await this.searchPublicKeyOnKeyServer(publicKey.getFingerprint());
-    for(let result of signatures){
-      let signatureKeyId = this.getPrettyKeyID(result.keyID); 
-      let keyFingerprint = publicKey.getFingerprint(); 
-
-      try{
-        await result.verified;
-        let signature = await result.signature;
-        
-        // find oidc2 result with matching pgp-fingerprint
-        let matchingOidc2Result = oidc2VerificationResults.find(r => r.ictVerified && r.popVerified && r.identity && r.identity.pgpFingerprint && r.identity.pgpFingerprint.toLowerCase() === keyFingerprint.toLowerCase());
-
-        if(publicKeyOnKeyserver && await publicKeyOnKeyserver.isRevoked()){
-          signatureVerificationResults.push({
-            signatureVerified: false,
-            signatureErrorMessage: 'key is revoked',
-            oidc2Identity: undefined,
-            keyId: signatureKeyId,
-            signedAt: undefined
-          });          
-        }
-        else if(matchingOidc2Result){
-          // signature verification successful and oidc2 chain verification successful
-          signatureVerificationResults.push({
-            signatureVerified: true,
-            oidc2Identity: matchingOidc2Result.identity,
-            keyId: signatureKeyId,
-            signedAt: signature.packets[0].created ?? undefined
-          });
-        }
-        else{
-          let errorMessage = '';
-          if(oidc2VerificationResults.length === 0){
-            errorMessage = 'no OIDC² identity available';
-          }
-          else{
-            errorMessage = `no matching OIDC² identity for PGP-fingerprint ${keyFingerprint.toUpperCase()} found`;
-          }
-          
-          signatureVerificationResults.push({
-            signatureVerified: true,
-            oidc2ErrorMessage: errorMessage,
-            keyId: signatureKeyId,
-          });
-        }              
-      }
-      catch(ex){
-        // signature verification failed
-        let errorMessage = 'invalid signature';
-        if(ex instanceof Error){
-          errorMessage = ex.message;
-        }
-        signatureVerificationResults.push({
-          signatureVerified: false,
-          signatureErrorMessage: errorMessage,
-        });
-      }
-    }
-    
-    return signatureVerificationResults;
   }
 
   /**

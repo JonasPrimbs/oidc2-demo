@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { FormControl, FormGroup } from '@angular/forms';
-import { Oidc2VerificationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
+import { PgpKeyAuthenticationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
 import { _MatListItemGraphicBase } from '@angular/material/list';
 import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
 import { SynchronizationService } from '../../services/synchronization/synchronization.service';
@@ -21,7 +21,7 @@ export class TrustworthyIctIssueManageComponent {
    */
   constructor(
     private readonly identityService: IdentityService,
-    private readonly oidc2VerivicationService: Oidc2VerificationService,
+    private readonly oidc2VerivicationService: PgpKeyAuthenticationService,
     private readonly dataService: SynchronizationService,
   ) 
   {

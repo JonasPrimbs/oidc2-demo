@@ -6,7 +6,7 @@ import { GmailApiService } from '../../services/gmail-api/gmail-api.service';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { MatTable } from '@angular/material/table';
-import { DataService } from '../../services/data/data.service';
+import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 
 @Component({
   selector: 'app-pgp-import-online',
@@ -24,7 +24,7 @@ export class PgpImportOnlineComponent {
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
     private readonly gmailApiService: GmailApiService,
-    private readonly dataService: DataService,
+    private readonly dataService: SynchronizationService,
   ) 
   {
     this.dataService.onlinePrivateKeysChanged.subscribe(() => this.relaodOnlinePrivateKeys()); 

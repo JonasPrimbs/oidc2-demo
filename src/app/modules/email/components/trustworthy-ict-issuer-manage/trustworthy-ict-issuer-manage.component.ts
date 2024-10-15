@@ -2,10 +2,10 @@ import { Component } from '@angular/core';
 
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 import { FormControl, FormGroup } from '@angular/forms';
-import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
+import { Oidc2VerificationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
 import { _MatListItemGraphicBase } from '@angular/material/list';
 import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
-import { DataService } from '../../services/data/data.service';
+import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 
 @Component({
   selector: 'app-trustworthy-ict-issuer-manage',
@@ -22,7 +22,7 @@ export class TrustworthyIctIssueManageComponent {
   constructor(
     private readonly identityService: IdentityService,
     private readonly oidc2VerivicationService: Oidc2VerificationService,
-    private readonly dataService: DataService,
+    private readonly dataService: SynchronizationService,
   ) 
   {
     this.oidc2VerivicationService.trustworthyIssuersChanged.subscribe(() => this.reloadTrustwortyIssuers());

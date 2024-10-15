@@ -5,7 +5,7 @@ import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 import { SignatureVerificationResult } from '../../types/signature-verification-result.interface';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
-import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
+import { Oidc2VerificationService } from '../pgp-key-authentication/pgp-key-authentication.service';
 import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';

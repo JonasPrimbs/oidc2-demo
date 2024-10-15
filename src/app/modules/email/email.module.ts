@@ -24,7 +24,7 @@ import { TrustworthyIctIssueManageComponent } from './components/trustworthy-ict
 import { EmailComponent } from './pages/email/email.component';
 import { EmailService } from './services/email/email.service';
 import { GmailApiService } from './services/gmail-api/gmail-api.service';
-import { Oidc2VerificationService } from './services/oidc2-verification/oidc2-verification.service';
+import { Oidc2VerificationService } from './services/pgp-key-authentication/pgp-key-authentication.service';
 import { PgpService } from './services/pgp/pgp.service';
 import { MatSnackBarModule, MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 

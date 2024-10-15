@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Oidc2VerificationService } from './oidc2-verification.service';
+import { Oidc2VerificationService } from './pgp-key-authentication.service';
 
 
 describe('Oidc2VerificationService', () => {

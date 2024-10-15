@@ -4,9 +4,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 
 import { MimeMessage } from '../../classes/mime-message/mime-message';
-import { DataService } from '../../services/data/data.service';
+import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 import { EmailService } from '../../services/email/email.service';
-import { Oidc2VerificationService } from '../../services/oidc2-verification/oidc2-verification.service';
+import { Oidc2VerificationService } from '../../services/pgp-key-authentication/pgp-key-authentication.service';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
@@ -39,7 +39,7 @@ export class EmailViewComponent {
     private readonly pgpService: PgpService,
     private readonly identityService: IdentityService,
     private readonly oidc2VerificationService: Oidc2VerificationService,
-    private readonly dataService: DataService,
+    private readonly dataService: SynchronizationService,
   )
   { 
     this.identityService.identitiesChanged.subscribe(() => this.selectDefaultGoogleIdentityOnIdentitiesChanged());

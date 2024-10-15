@@ -11,7 +11,7 @@ import * as jose from 'jose';
 @Injectable({
   providedIn: 'root',
 })
-export class Oidc2AttachmentService {
+export class PgpKeyCertificationService {
   
   /**
    * Constructs a new Oidc2Attachment Service instance.

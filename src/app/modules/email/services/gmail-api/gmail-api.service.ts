@@ -10,7 +10,7 @@ import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from "../../types/
 
 import * as openpgp from 'openpgp';
 import { OnlinePrivateKey as OnlinePrivateKey } from "../../types/online-private-key.interface";
-import { Oidc2AttachmentService } from "../oidc2-attachment/oidc2-attachment.service";
+import { PgpKeyCertificationService } from "../pgp-key-certification/pgp-key-certification.service";
 import { EmailContent } from "../../classes/email-content/email-content";
 
 @Injectable({
@@ -28,7 +28,7 @@ export class GmailApiService {
 
   constructor(
     private readonly http: HttpClient,
-    private readonly oidc2AttachmentService: Oidc2AttachmentService,
+    private readonly oidc2AttachmentService: PgpKeyCertificationService,
   ){}
 
   /**

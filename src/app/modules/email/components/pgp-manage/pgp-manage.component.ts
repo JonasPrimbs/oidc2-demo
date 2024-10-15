@@ -5,7 +5,7 @@ import * as openpgp from 'openpgp';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
-import { DataService } from '../../services/data/data.service';
+import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
@@ -26,7 +26,7 @@ export class PgpManageComponent {
    */
   constructor(
     private readonly pgpService: PgpService,
-    private readonly dataService: DataService,
+    private readonly dataService: SynchronizationService,
   ) 
   { }
 

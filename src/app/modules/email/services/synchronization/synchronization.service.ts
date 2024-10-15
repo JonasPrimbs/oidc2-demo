@@ -6,7 +6,7 @@ import { EventEmitter, Injectable } from '@angular/core';
 import { Identity, IdentityService } from '../../../authentication';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { PgpService } from '../pgp/pgp.service';
-import { Oidc2VerificationService } from '../oidc2-verification/oidc2-verification.service';
+import { Oidc2VerificationService } from '../pgp-key-authentication/pgp-key-authentication.service';
 import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/trustworthy-ict-issuer';
 import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
@@ -17,7 +17,7 @@ import { MimeMessage } from '../../classes/mime-message/mime-message';
 @Injectable({
   providedIn: 'root',
 })
-export class DataService {
+export class SynchronizationService {
   
   /**
    * Constructs a new Email Service instance.

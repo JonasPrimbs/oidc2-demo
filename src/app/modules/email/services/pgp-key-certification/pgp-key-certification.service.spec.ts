@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
-import { Oidc2AttachmentService } from './oidc2-attachment.service';
+import { PgpKeyCertificationService } from './pgp-key-certification.service';
 
 
 describe('Oidc2AttachmentService', () => {
-  let service: Oidc2AttachmentService;
+  let service: PgpKeyCertificationService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(Oidc2AttachmentService);
+    service = TestBed.inject(PgpKeyCertificationService);
   });
 
   it('should be created', () => {

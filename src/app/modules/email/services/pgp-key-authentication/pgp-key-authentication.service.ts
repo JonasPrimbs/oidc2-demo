@@ -13,6 +13,7 @@ import { TrustworthyIctIssuer } from "../../types/trustworthy-ict-issuer";
 import { PgpService } from "../pgp/pgp.service";
 import { DecryptedAndVerifiedMimeMessage, MimeMessageSecurityResult } from "../../types/mime-message-security-result.interface";
 import { SignatureVerificationResult } from "../../types/signature-verification-result.interface";
+import { EmailService } from '../email/email.service';
 
 @Injectable({
   providedIn: 'root',
@@ -32,6 +33,7 @@ export class PgpKeyAuthenticationService {
   constructor(
     private readonly http: HttpClient,
     private readonly pgpService: PgpService,
+    private readonly emailService: EmailService,
   ){
     let issuers = localStorage.getItem(this.trustworthyRootIctIssuerKey);
     if(issuers){
@@ -132,7 +134,7 @@ export class PgpKeyAuthenticationService {
    public async authenticatePgpKey(mimeMessage: MimeMessage, verifierIdentity: Identity, additionalTrustworthyIctIssuers?: string[]) : Promise<MimeMessageSecurityResult>{
     
     // decrypt and verify the PGP signature
-    let decryptedMimeMessage = await this.pgpService.decryptAndVerifyMimeMessage(mimeMessage);
+    let decryptedMimeMessage = await this.emailService.decryptAndVerifyMimeMessage(mimeMessage);
     
     // find the ICT-PoP pairs
     let ictPopPairs = this.getIctPopPairs(decryptedMimeMessage.clearetextMimeMessage);

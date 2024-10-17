@@ -1,13 +1,13 @@
 import { decodeBase64 } from "src/app/byte-array-converter";
 import { AttachmentFile } from "../attachment-file/attachment-file";
-import { MimeMessageHeader as MimeMessageHeader, findMimeHeaderParameter, parseMimeMessageHeaders, findMimeHeader } from "../mime-message-header/mime-message-header";
+import { MimeMessageHeader as MimeMessageHeader, MimeMessageHeaderParameter } from "../mime-message-header/mime-message-header";
 
 
 // regular expressions
 const mimeTypeRegex = /([\w\d\-\_]+)\/([\w\d\-\_]+)/gi;
 
 // headers
-const contentTypeHeader = "content-type";
+export const contentTypeHeader = "content-type";
 const contentTransferEncodingHeader = "content-transfer-encoding";
 const contentDispositionHeaderName = "content-disposition";
 const contentDescriptionHeaderName = "content-description";
@@ -33,7 +33,7 @@ const contentTypeProtocolPgpEncrypted = "application/pgp-encrypted";
 const contentTransferEncodingBase64 = "base64";
 const contentTransferEncodingQuotedPrintable = "quoted-printable";
 
-const emptyLine = '\r\n\r\n';
+
 
 
 export class MimeMessagePart{
@@ -166,53 +166,23 @@ export class MimeMessagePart{
 
 
 /**
-* Function to parse a single MIME part
-* @param rawEmailMessagePart the raw MIME-part 
-* @returns 
-*/
-export function parseMimeMessagePart(rawEmailMessagePart: string) : MimeMessagePart{
-  // separate header section from body section by empty line (Defined in RFC 5422, Section 2.1)
-  let headerContent = rawEmailMessagePart.substring(0, rawEmailMessagePart.indexOf(emptyLine));
-  let bodyContent = rawEmailMessagePart.substring(rawEmailMessagePart.indexOf(emptyLine) + emptyLine.length);
-
-  let headers = parseMimeMessageHeaders(headerContent);
-
-  // find the boundary delimiter
-  let boundaryDelimiter: string | undefined = undefined;
-  let contentType = findMimeHeader(headers, contentTypeHeader);
-  if(contentType !== undefined){
-      let boundary = findMimeHeaderParameter(contentType.parameters, "boundary")?.value
-      boundaryDelimiter = boundary !== undefined ? `--${boundary}` : undefined;
-  }
-
-  if(boundaryDelimiter){
-    return new MimeMessagePart(headers, '', parseEmailMessageParts(bodyContent, boundaryDelimiter), rawEmailMessagePart);
-  }
-  return new MimeMessagePart(headers, bodyContent, [], rawEmailMessagePart);
+ * Find a header parameter attribute
+ * @param parameters header parameters
+ * @param attribute the attribute to search
+ * @returns 
+ */
+export function findMimeHeaderParameter(parameters: MimeMessageHeaderParameter[], attribute: string) : MimeMessageHeaderParameter | undefined{
+  return parameters.find(p => p.attribute.toLowerCase() === attribute);
 }
 
 /**
-* Function to split into multiple body parts
-* @param rawEmailMessagePartsContent 
-* @param boundaryDelimiter 
-* @returns 
-*/
-export function parseEmailMessageParts(rawEmailMessagePartsContent: string, boundaryDelimiter: string) : MimeMessagePart[]{
-  const boundaryDelimiterStart = `${boundaryDelimiter}\r\n`;
-  const boundaryDelimiterEnd = `${boundaryDelimiter}--`;
-
-  let allParts = rawEmailMessagePartsContent.split(new RegExp(`${boundaryDelimiterStart}|${boundaryDelimiterEnd}`));
-  // remove preamble and epilogue (RFC 2046 section 5.1.1)
-  let bodyParts = allParts.slice(1, allParts.length-1);
-
-  let messageParts : MimeMessagePart[] = [];
-  for(let mimePart of bodyParts){
-      // signature goes over the data without empty line
-      let mimePartRemovedLastEmptyLine = mimePart.trimEnd() + '\r\n';
-      let messagePart = parseMimeMessagePart(mimePartRemovedLastEmptyLine);
-      messageParts = [...messageParts, messagePart];
-  }
-  return messageParts;
+ * find a header by name
+ * @param headers all headers 
+ * @param name name of the header
+ * @returns 
+ */
+export function findMimeHeader(headers: MimeMessageHeader[], name: string) : MimeMessageHeader | undefined{
+  return headers.find(h => h.name.toLowerCase() === name);
 }
 
 /**
@@ -243,7 +213,7 @@ export function decodeBody(body: string, encoding?: string) : Uint8Array{
  * @param input 
  * @returns 
  */
-function decodeQuotedPrintable(input: string) : string{
+  function decodeQuotedPrintable(input: string) : string{
   return input
       .replace(/=[\r\n]+/g, '')  // Remove soft line breaks
       .replace(/=([0-9A-F]{2})/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));  // Decode hex values

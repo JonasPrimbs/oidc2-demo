@@ -1,6 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { Identity } from 'src/app/modules/authentication';
-import { parseMimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
 import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { DecryptedAndVerifiedMimeMessage, MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
 import { PublicKeyOwnership } from '../../types/public-key-ownership.interface';
@@ -173,79 +172,91 @@ export class PgpService {
     };
   }
 
-  // decrypt and verify MIME message
+  public async decryptPrivateKey(privateKey?: openpgp.PrivateKey, passphrase?: string) : Promise<openpgp.PrivateKey | undefined>{
+    if(privateKey && passphrase && !privateKey.isDecrypted()){
+      // decrypts the private key
+      privateKey = await openpgp.decryptKey({
+        privateKey,
+        passphrase,
+      });
+      return privateKey;
+    }
+
+    if(privateKey?.isDecrypted()){
+      return privateKey;
+    }
+
+    return undefined;
+  }
+
+  // encryption/decryption
 
   /**
-   * decrypts a MIME-message
-   * @param mimeMessage 
+   * decrypt a message
+   * @param encryptedMessage 
+   * @param verificationKeys 
    * @returns 
    */
-  public async decryptAndVerifyMimeMessage(mimeMessage: MimeMessage): Promise<DecryptedAndVerifiedMimeMessage>{
-    let encryptedMessage = mimeMessage.payload.encryptedContent()?.body;
-
-    let encrypted : boolean = false;
-    let decryptionSuccessful :  boolean | undefined = undefined; 
-    let decryptionErrorMessage : string | undefined = undefined;
-    let clearetextMimeMessage : MimeMessage = mimeMessage;
-    let signatures : openpgp.VerificationResult[] = [];
-    let publicKey : openpgp.PublicKey | undefined = undefined;
-
-    // decryption
-    if(encryptedMessage){
-      encrypted = true;
-      let decryptedKeys = await Promise.all(await this.privateKeys.map(k => openpgp.decryptKey({privateKey: k.key, passphrase: k.passphrase})));
-      let message = await openpgp.readMessage({armoredMessage: encryptedMessage});
-      try{
-        let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys});
-        decryptionSuccessful = true;
-
-        // the encypted content for thunderbird has only \n for linebreaks instead of \r\n. 
-        let decryptedMimeContent = decryptedMessageResult.data.replace(/(?<!\r)\n/g, '\r\n');
-        
-        // append date-header to the decrypted mime message (needed for oidc2-verification)
-        if(mimeMessage.payload.date){
-          decryptedMimeContent = `Date: ${mimeMessage.payload.date.toISOString()}\r\n` + decryptedMimeContent;
-        }
-        let decryptedMimeMessagePart = parseMimeMessagePart(decryptedMimeContent);      
-        clearetextMimeMessage = new MimeMessage(decryptedMimeMessagePart);
-        
-        //verify signatures in the encrypted message
-        let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
-        if(armoredKey){
-          publicKey = await openpgp.readKey({armoredKey});
-          message = await openpgp.readMessage({armoredMessage: encryptedMessage});
-          let decryptedSignedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys: publicKey});
-          signatures.push(...decryptedSignedMessageResult.signatures);
-        }
-      }
-      catch(err){
-        if(err instanceof Error){
-          decryptionErrorMessage = err.message;
-        }
-      }
+  public async decrypt(encryptedMessage: string, verificationKeys?: openpgp.PublicKey[]) : Promise<openpgp.DecryptMessageResult & { data: string} > {
+    let decryptedKeys = await Promise.all(await this.privateKeys.map(k => openpgp.decryptKey({privateKey: k.key, passphrase: k.passphrase})));
+    let message = await openpgp.readMessage({armoredMessage: encryptedMessage});
+    try{
+      let decryptedMessageResult = await openpgp.decrypt({message, decryptionKeys: decryptedKeys, verificationKeys});
+      return decryptedMessageResult;
     }
-
-    let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
-    let armoredSignature = clearetextMimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
-    let signedContent = clearetextMimeMessage.payload.signedContent()?.raw;
-
-    // cleartext mail is signed
-    if(armoredKey && armoredSignature && signedContent){
-      publicKey = await openpgp.readKey({armoredKey});
-      let signature = await openpgp.readSignature({armoredSignature});
-      let message = await openpgp.createMessage({text: signedContent});
-      let verifyMessageResult = await openpgp.verify({message, verificationKeys: publicKey, signature});
-      signatures.push(...verifyMessageResult.signatures);
+    catch(err){
+      throw err;
     }
+  }
+  
+  /**
+   * encrypt a message
+   * @param message 
+   * @param encryptionKeys 
+   * @returns 
+   */
+  public async encrypt(message: string, encryptionKeys: openpgp.PublicKey[]) : Promise<string>{
+      // Create PGP message from emailString.
+    const pgpMessage = await openpgp.createMessage({ text: message });
 
-    return {
-      clearetextMimeMessage,
-      encrypted,
-      decryptionSuccessful,
-      decryptionErrorMessage,
-      signatures,
-      publicKey,
-    };
+    // Encrypt the PGP message with the provided public key.
+    const encrypted = await openpgp.encrypt({
+      message: pgpMessage,
+      encryptionKeys,
+    });
+
+    return encrypted;
+  }
+  
+  /**
+   * verify PGP signature
+   * @param armoredSignature 
+   * @param signedContent 
+   * @param verificationKeys 
+   * @returns 
+   */
+  public async verify(armoredSignature: string, signedContent: string, verificationKeys: openpgp.PublicKey[]) : Promise<openpgp.VerifyMessageResult<string>>{
+    let signature = await openpgp.readSignature({armoredSignature});
+    let message = await openpgp.createMessage({text: signedContent});
+    let verifyMessageResult = await openpgp.verify({message, verificationKeys, signature});
+    return verifyMessageResult;
+  }
+
+  /**
+   * sign a message
+   * @param message 
+   * @param signingKeys 
+   * @returns 
+   */
+  public async sign(message: string, signingKeys: openpgp.PrivateKey[]) : Promise<string>{
+    const pgpMessage = await openpgp.createMessage({ text: message });
+    const signatureString = await openpgp.sign({
+      message: pgpMessage,
+      signingKeys,
+      detached: true,
+      format: 'armored',
+    });
+    return signatureString;
   }
 
   /**

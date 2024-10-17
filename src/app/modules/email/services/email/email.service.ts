@@ -4,12 +4,15 @@ import { Injectable } from '@angular/core';
 
 import { Identity, IdentityService } from '../../../authentication';
 import { Email } from '../../classes/email/email';
-import { decodeAndParseMimeMessage, MimeMessage } from '../../classes/mime-message/mime-message';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { GmailApiService } from '../gmail-api/gmail-api.service';
 import { PgpService } from '../pgp/pgp.service';
 import { AttachmentFile } from '../../classes/attachment-file/attachment-file';
-import { encodeBase64url } from 'src/app/byte-array-converter/base64url';
+import { decodeBase64url, encodeBase64url } from 'src/app/byte-array-converter/base64url';
 import { EmailPart } from '../../types/email-part.interface';
+import { contentTypeHeader, findMimeHeader, findMimeHeaderParameter, MimeMessagePart } from '../../classes/mime-message-part/mime-message-part';
+import { headerRegex, MimeMessageHeader } from '../../classes/mime-message-header/mime-message-header';
+import { DecryptedAndVerifiedMimeMessage } from '../../types/mime-message-security-result.interface';
 
 @Injectable({
   providedIn: 'root',
@@ -53,7 +56,7 @@ export class EmailService {
       return undefined;
     }
     
-    let emailMessage = decodeAndParseMimeMessage(message.raw);
+    let emailMessage = this.decodeAndParseMimeMessage(message.raw);
     return emailMessage;
   }
 
@@ -79,6 +82,100 @@ export class EmailService {
     }
     return false;
   }  
+
+  /**
+   * decrypts a MIME-message
+   * @param mimeMessage 
+   * @returns 
+   */
+   public async decryptAndVerifyMimeMessage(mimeMessage: MimeMessage): Promise<DecryptedAndVerifiedMimeMessage>{
+    let encryptedMessage = mimeMessage.payload.encryptedContent()?.body;
+
+    let encrypted : boolean = false;
+    let decryptionSuccessful :  boolean | undefined = undefined; 
+    let decryptionErrorMessage : string | undefined = undefined;
+    let clearetextMimeMessage : MimeMessage = mimeMessage;
+    let signatures : openpgp.VerificationResult[] = [];
+    let publicKey : openpgp.PublicKey | undefined = undefined;
+
+    // decryption
+    if(encryptedMessage){
+      encrypted = true;
+      try{
+        let decryptedMessageResult = await this.pgpService.decrypt(encryptedMessage);
+        decryptionSuccessful = true;
+
+        // the encypted content for thunderbird has only \n for linebreaks instead of \r\n. 
+        let decryptedMimeContent = decryptedMessageResult.data.replace(/(?<!\r)\n/g, '\r\n');
+        
+        // append date-header to the decrypted mime message (needed for oidc2-verification)
+        if(mimeMessage.payload.date){
+          decryptedMimeContent = `Date: ${mimeMessage.payload.date.toISOString()}\r\n` + decryptedMimeContent;
+        }
+        let decryptedMimeMessagePart = this.parseMimeMessagePart(decryptedMimeContent);      
+        clearetextMimeMessage = new MimeMessage(decryptedMimeMessagePart);
+        
+        //verify signatures in the encrypted message
+        let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+        if(armoredKey){
+          publicKey = await this.pgpService.importPublicKey(armoredKey);
+          let decryptedSignedMessageResult = await this.pgpService.decrypt(encryptedMessage, [publicKey]);
+          signatures.push(...decryptedSignedMessageResult.signatures);
+        }
+      }
+      catch(err){
+        if(err instanceof Error){
+          decryptionErrorMessage = err.message;
+        }
+      }
+    }
+
+    let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
+    let armoredSignature = clearetextMimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
+    let signedContent = clearetextMimeMessage.payload.signedContent()?.raw;
+
+    // cleartext mail is signed
+    if(armoredKey && armoredSignature && signedContent){
+      publicKey = await this.pgpService.importPublicKey(armoredKey);
+      let verifyMessageResult = await this.pgpService.verify(armoredSignature, signedContent, [publicKey]);
+      signatures.push(...verifyMessageResult.signatures);
+    }
+
+    return {
+      clearetextMimeMessage,
+      encrypted,
+      decryptionSuccessful,
+      decryptionErrorMessage,
+      signatures,
+      publicKey,
+    };
+  }
+
+  /**
+    * Function to parse a MIME-message
+    * @param rawMimeContent the MIME-representation of the email
+    * @returns 
+    */
+  public parseMimeMessage(rawMimeContent: string) : MimeMessage{
+    let messagePart = this.parseMimeMessagePart(rawMimeContent);
+    let mailMessage = new MimeMessage(messagePart);
+    return mailMessage;
+  }
+
+  /**
+   * decodes and parses a MIME message
+   * @param encodedMime 
+   * @returns 
+   */
+  public decodeAndParseMimeMessage(encodedMime: string) : MimeMessage {
+    let decodedEmail = decodeBase64url(encodedMime);
+    
+    let decoder = new TextDecoder();
+    let mimeMessage = decoder.decode(decodedEmail);
+    
+    let emailMessage = this.parseMimeMessage(mimeMessage);
+    return emailMessage;
+  }
 
   /**
    * Encrypts the email string with PGP and returns as raw string (base64url encoded)
@@ -115,20 +212,7 @@ export class EmailService {
    * @returns Signed email string.
    */
    public async getMimeString(email: Email, pgpPrivateKey?: openpgp.PrivateKey, passphrase?: string): Promise<string> {
-
-    let privateKey: openpgp.PrivateKey | undefined = undefined;
-
-    if(pgpPrivateKey && passphrase && !pgpPrivateKey.isDecrypted()){
-      // decrypts the private key
-      privateKey = await openpgp.decryptKey({
-        privateKey: pgpPrivateKey,
-        passphrase: passphrase,
-      });
-    }
-
-    if(pgpPrivateKey?.isDecrypted()){
-      privateKey = pgpPrivateKey;
-    }
+    let privateKey = await this.pgpService.decryptPrivateKey(pgpPrivateKey, passphrase);
 
     let publicKey: openpgp.PublicKey | undefined = undefined;
     let publicKeyAttachment: AttachmentFile | undefined;
@@ -176,17 +260,12 @@ export class EmailService {
     let signatureFileAttachment: AttachmentFile | undefined;
     if(privateKey){
       // Create signature.
-      const pgpMessage = await openpgp.createMessage({ text: body });
-      const signatrueString = await openpgp.sign({
-        message: pgpMessage,
-        signingKeys: privateKey,
-        detached: true,
-        format: 'armored',
-      });
+      
+      let signature = await this.pgpService.sign(body, [privateKey])
           
       signatureFileAttachment = new AttachmentFile(
         'OpenPGP_signature.asc',
-        signatrueString,
+        signature,
         'application/pgp-signature',
         'OpenPGP digital signature',
       );
@@ -224,19 +303,12 @@ export class EmailService {
     // Get signed and unencrypted email string.
     const emailString = await this.getMimeString(email, pgpPrivateKey, passphrase);
 
-    // Create PGP message from emailString.
-    const pgpMessage = await openpgp.createMessage({ text: emailString });
-
-    // Encrypt the PGP message with the provided public key.
-    const encryptedMailContent = await openpgp.encrypt({
-      message: pgpMessage,
-      encryptionKeys,
-    });
+    let encryptedEmailString = await this.pgpService.encrypt(emailString, encryptionKeys);
 
     const outerBoundary = this.generateRandomBoundry();
 
     // attachment with encrypted content
-    const encryptedAttachment = new AttachmentFile("encrypted.asc", encryptedMailContent, "application/octet-stream", "OpenPGP encrypted message");   
+    const encryptedAttachment = new AttachmentFile("encrypted.asc", encryptedEmailString, "application/octet-stream", "OpenPGP encrypted message");   
     
     // this part is equal for all pgp encrypted mails:
     const pgpMimeVersionPart = `Content-Type: application/pgp-encrypted
@@ -282,5 +354,96 @@ export class EmailService {
     const arrayBuffer = new Uint8Array(byteLength);
     const randomBytes = crypto.getRandomValues(arrayBuffer);
     return `---------${encodeBase64url(randomBytes)}`;
+  }
+
+  //////////////////////////////// PARSE MIME MESSAGE ///////////////////////
+
+  readonly emptyLine = '\r\n\r\n';
+
+  /**
+  * Function to parse a single MIME part
+  * @param rawEmailMessagePart the raw MIME-part 
+  * @returns 
+  */
+  private parseMimeMessagePart(rawEmailMessagePart: string) : MimeMessagePart{
+    // separate header section from body section by empty line (Defined in RFC 5422, Section 2.1)
+    let headerContent = rawEmailMessagePart.substring(0, rawEmailMessagePart.indexOf(this.emptyLine));
+    let bodyContent = rawEmailMessagePart.substring(rawEmailMessagePart.indexOf(this.emptyLine) + this.emptyLine.length);
+
+    let headers = this.parseMimeMessageHeaders(headerContent);
+
+    // find the boundary delimiter
+    let boundaryDelimiter: string | undefined = undefined;
+    let contentType = findMimeHeader(headers, contentTypeHeader);
+    if(contentType !== undefined){
+        let boundary = findMimeHeaderParameter(contentType.parameters, "boundary")?.value
+        boundaryDelimiter = boundary !== undefined ? `--${boundary}` : undefined;
+    }
+
+    if(boundaryDelimiter){
+      return new MimeMessagePart(headers, '', this.parseEmailMessageParts(bodyContent, boundaryDelimiter), rawEmailMessagePart);
+    }
+    return new MimeMessagePart(headers, bodyContent, [], rawEmailMessagePart);
+  }
+
+  /**
+  * Function to split into multiple body parts
+  * @param rawEmailMessagePartsContent 
+  * @param boundaryDelimiter 
+  * @returns 
+  */
+  private parseEmailMessageParts(rawEmailMessagePartsContent: string, boundaryDelimiter: string) : MimeMessagePart[]{
+    const boundaryDelimiterStart = `${boundaryDelimiter}\r\n`;
+    const boundaryDelimiterEnd = `${boundaryDelimiter}--`;
+
+    let allParts = rawEmailMessagePartsContent.split(new RegExp(`${boundaryDelimiterStart}|${boundaryDelimiterEnd}`));
+    // remove preamble and epilogue (RFC 2046 section 5.1.1)
+    let bodyParts = allParts.slice(1, allParts.length-1);
+
+    let messageParts : MimeMessagePart[] = [];
+    for(let mimePart of bodyParts){
+        // signature goes over the data without empty line
+        let mimePartRemovedLastEmptyLine = mimePart.trimEnd() + '\r\n';
+        let messagePart = this.parseMimeMessagePart(mimePartRemovedLastEmptyLine);
+        messageParts = [...messageParts, messagePart];
+    }
+    return messageParts;
+  }
+
+  /**
+  * Function to parse the header fields of a MIME-part
+  * @param rawMimeMessageHeaderContent 
+  * @returns 
+  */
+  private parseMimeMessageHeaders(rawMimeMessageHeaderContent: string) : MimeMessageHeader[]{
+    let headers: MimeMessageHeader[] = [];
+    let currentHeaderKey: string | undefined = undefined;
+    let currentHeaderValue: string | undefined = undefined;
+
+    for(let line of rawMimeMessageHeaderContent.split('\r\n')){
+        let header = new RegExp(headerRegex);
+        let result = header.exec(line);
+        if(result != null){
+            if(currentHeaderKey !== undefined && currentHeaderValue !== undefined){
+                headers.push(new MimeMessageHeader(currentHeaderKey, currentHeaderValue)); 
+            }
+            currentHeaderKey = result[1];
+            currentHeaderValue = result[2];
+        }
+        else if(line === ''){
+            if(currentHeaderKey !== undefined && currentHeaderValue !== undefined){
+                headers.push(new MimeMessageHeader(currentHeaderKey, currentHeaderValue)); 
+            }
+            currentHeaderKey = undefined;
+            currentHeaderValue = undefined;
+        }
+        else if(currentHeaderValue !== undefined){
+            currentHeaderValue = `${currentHeaderValue}\r\n${line}`
+        }
+    }
+    if(currentHeaderKey !== undefined && currentHeaderValue !== undefined){
+        headers.push(new MimeMessageHeader(currentHeaderKey, currentHeaderValue));
+    }
+    return headers;
   }
 }

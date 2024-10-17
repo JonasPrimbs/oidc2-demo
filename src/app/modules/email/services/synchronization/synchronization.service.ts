@@ -10,7 +10,7 @@ import { OnlinePrivateKey } from '../../types/online-private-key.interface';
 import { PrivateKeyOwnership } from '../../types/private-key-ownership.interface';
 import { PublicKeyOwnership, PublicKeyOwnershipExtended } from '../../types/public-key-ownership.interface';
 import { MimeMessageSecurityResult } from '../../types/mime-message-security-result.interface';
-import { decodeAndParseMimeMessage, MimeMessage } from '../../classes/mime-message/mime-message';
+import { MimeMessage } from '../../classes/mime-message/mime-message';
 import { EmailService } from '../email/email.service';
 import { EmailContent } from '../../classes/email-content/email-content';
 import { Email } from '../../classes/email/email';
@@ -396,7 +396,7 @@ public deletePrivateKey(privateKey: PrivateKeyOwnership): void {
     for (let mail of listMailResult.messages){
       let message = await this.gmailApiService.getMessage(identity, mail.id);
       if(message?.raw){
-        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        let parsedMimeMessage = this.emailService.decodeAndParseMimeMessage(message.raw);
         let privateKeyAttachment = parsedMimeMessage.payload.attachments.filter(a => a.name === this.privateKeyAttachmentFileName);
         for(let attachment of privateKeyAttachment){
           let privateKey = await openpgp.readPrivateKey({ armoredKey: attachment.decodedText() })
@@ -421,7 +421,7 @@ public deletePrivateKey(privateKey: PrivateKeyOwnership): void {
     for(let mail of listMailsResult.messages){
       let message = await this.gmailApiService.getMessage(identity, mail.id);
       if(message?.raw){
-        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        let parsedMimeMessage = this.emailService.decodeAndParseMimeMessage(message.raw);
         publicKeyOwnerships.push({ 
           identity: identity, 
           messageId: mail.id,
@@ -446,7 +446,7 @@ public deletePrivateKey(privateKey: PrivateKeyOwnership): void {
     for(let mail of listMailsResult.messages){
       let message = await this.gmailApiService.getMessage(identity, mail.id);
       if(message?.raw){
-        let parsedMimeMessage = decodeAndParseMimeMessage(message.raw);
+        let parsedMimeMessage = this.emailService.decodeAndParseMimeMessage(message.raw);
         let trustworthyIssuerAttachments = parsedMimeMessage.payload.attachments.filter(a => a.name === this.trustworthyIctIssuerAttachmentFileName);
         for(let attachment of trustworthyIssuerAttachments){
           trustworthyIctIssuers.push({ 

@@ -136,6 +136,14 @@ export class EmailEditorComponent implements OnInit {
     return privateKey;
   }
 
+  public get encrypted(): boolean{
+    return this.emailForm.controls.encryption.value ?? false;
+  }
+
+  public get signed(): boolean{
+    return this.emailForm.controls.key.value !== undefined && this.emailForm.controls.key.value !== null;
+  }
+
   /**
    * Sends the email.
    */

@@ -1,5 +1,18 @@
 <!-- Email Form -->
 <form class="email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
+
+  <div>
+    <mat-icon *ngIf="encrypted" 
+              class="icon-display"
+              svgIcon="lock-check-outline"/>
+    <mat-icon *ngIf="signed" 
+              class="icon-display"
+              svgIcon="certificate"/>
+    <mat-icon *ngIf="!encrypted || !signed" 
+              class="icon-display bad"
+              svgIcon="email-alert-outline"/>
+  </div>
+
   <!-- From Selector -->
   <mat-form-field>
     <mat-label>From</mat-label>
@@ -43,7 +56,6 @@
   </mat-form-field>
 
   <!-- Encryption Input -->
-  <mat-label>Mail encryption</mat-label>
   <mat-checkbox formControlName="encryption">Encryption</mat-checkbox>
 
   <!-- Body Input -->

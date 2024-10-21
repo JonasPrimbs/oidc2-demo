@@ -132,7 +132,8 @@ export class EmailService {
 
     let armoredKey = clearetextMimeMessage.payload.attachments.find(a => a.isPgpKey())?.decodedText();
     let armoredSignature = clearetextMimeMessage.payload.attachments.find(a => a.isPgpSignature())?.decodedText();
-    let signedContent = clearetextMimeMessage.payload.signedContent()?.raw;
+    // search for signed content only in the root level of the MIME message. Otherwise signed and unsigned parts of the email may coexist.
+    let signedContent = clearetextMimeMessage.payload.signedContent()?.raw; 
 
     // cleartext mail is signed
     if(armoredKey && armoredSignature && signedContent){

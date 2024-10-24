@@ -309,8 +309,8 @@ export class PgpService {
    * @param receiver 
    * @returns 
    */
-  public canBeEncrypted(sender: Identity, receiver: string): boolean{
-    return this.getEncryptionKeys(sender, receiver) !== undefined;
+  public async encryptionPossible(sender: Identity, receiver: string): Promise<boolean>{
+    return (await this.getEncryptionKeys(sender, receiver)) !== undefined;
   }
 
   /**
@@ -318,7 +318,7 @@ export class PgpService {
    * @param receiver 
    * @returns 
    */
-  public getEncryptionKeys(sender: Identity, receiver: string): openpgp.PublicKey[] | undefined{
+  public async getEncryptionKeys(sender: Identity, receiver: string, privateKey?: openpgp.PrivateKey, passphrase?: string): Promise<openpgp.PublicKey[] | undefined>{
     let receivers = receiver.split(',').map(r => r.toLowerCase().trim());
     let encryptionKeys: openpgp.PublicKey[] = [];
     for(let r of receivers){
@@ -327,6 +327,14 @@ export class PgpService {
         return undefined;
       }
       encryptionKeys.push(owner.key);
+    }
+    if(privateKey){
+      let decryptedPrivateKey = await openpgp.decryptKey({privateKey, passphrase});
+      let publicKey = decryptedPrivateKey.toPublic();
+      let contained = encryptionKeys.find(k => k.getFingerprint() === publicKey.getFingerprint());
+      if(!contained){
+        encryptionKeys.push(publicKey);
+      }
     }
     return encryptionKeys;
   }

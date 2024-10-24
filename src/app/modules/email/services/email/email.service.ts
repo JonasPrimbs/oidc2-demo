@@ -68,7 +68,7 @@ export class EmailService {
     let emailString: string | undefined;
     
     if(encrypted){
-      let encryptionKeys = this.pgpService.getEncryptionKeys(email.sender, email.receiver);
+      let encryptionKeys = await this.pgpService.getEncryptionKeys(email.sender, email.receiver, privateKey, passphrase);
       if(encryptionKeys!== undefined){
         emailString = await this.getEmailRawEncryptedMimeString(email, encryptionKeys, privateKey, passphrase);
       }

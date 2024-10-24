@@ -185,8 +185,12 @@ export class EmailEditorComponent implements OnInit {
   /**
    * update the disabled state of the encryption-checkbox
    */
-  public updateEncryptionDisabledState(){
-    if(this.emailForm.controls.to.value && this.emailForm.controls.from.value && this.pgpService.canBeEncrypted(this.emailForm.controls.from.value, this.emailForm.controls.to.value)){
+  public async updateEncryptionDisabledState(){
+    let encryptionPossible = false;
+    if(this.emailForm.controls.to.value && this.emailForm.controls.from.value){
+      encryptionPossible = await this.pgpService.encryptionPossible(this.emailForm.controls.from.value, this.emailForm.controls.to.value)
+    }
+    if(encryptionPossible){
       this.emailForm.controls.encryption.enable();
     }
     else{

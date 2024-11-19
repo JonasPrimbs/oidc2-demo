@@ -12,11 +12,6 @@ import * as openpgp from 'openpgp';
   styleUrls: ['./pgp-import.component.scss'],
 })
 export class PgpImportComponent {
-  /**
-   * The PGP Key File Input element.
-   */
-  @ViewChild('pgpFileInput')
-  public pgpFileInput?: ElementRef<HTMLInputElement>;
 
   /**
    * Gets the available identities.
@@ -43,11 +38,13 @@ export class PgpImportComponent {
     private readonly identityService: IdentityService,
   ) { }
 
+  private _selectedFile: File | undefined;
+
   /**
    * Gets the selected file.
    */
-  private get selectedFile(): File | undefined {
-    return this.pgpFileInput?.nativeElement.files?.item(0) ?? undefined;
+  public get selectedFile(): File | undefined {
+    return this._selectedFile;
   }
 
   /**
@@ -72,6 +69,16 @@ export class PgpImportComponent {
         reject(e);
       }
     });
+  }
+
+  onFileSelected(event: Event) {
+
+    let eventTarget = event.target as HTMLInputElement;
+
+    if(eventTarget){
+      this._selectedFile = eventTarget.files?.item(0) ?? undefined;
+      console.log(this.selectedFile);
+    }
   }
 
   /**
@@ -119,5 +126,6 @@ export class PgpImportComponent {
 
     // Reset the PGP Form.
     this.pgpForm.reset();
+    this._selectedFile = undefined;
   }
 }

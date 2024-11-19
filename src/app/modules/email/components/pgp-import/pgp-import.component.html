@@ -1,9 +1,12 @@
 <!-- PGP File Input -->
-<label>
-  <span>PGP Key File</span>
-  <br>
-  <input #pgpFileInput accept=".pgp" type="file">
-</label>
+<input #pgpFileInput accept=".pgp" type="file" class="hidden"  (change)="onFileSelected($event)">
+<div class="file-upload">
+  {{ selectedFile?.name || "No file uploaded yet"}}
+   <button mat-stroked-button class="upload-btn"
+     (click)="pgpFileInput.click()">
+     Upload PGP private key file
+   </button>
+</div>
 
 <!-- PGP Key Form -->
 <form [formGroup]="pgpForm" (submit)="import()">

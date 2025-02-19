@@ -1,5 +1,35 @@
-<!-- PGP Key Import -->
-<!-- <app-pgp-import></app-pgp-import> -->
 
-<!-- Email Editor -->
-<app-email-editor></app-email-editor>
+
+
+<mat-tab-group class="span">
+  
+  <mat-tab label="Settings">
+    <!-- PGP Key Import -->
+    <h2>Import PGP Key from filesystem</h2>
+    <app-pgp-import></app-pgp-import>
+
+    <!-- PGP Key import from gmail -->
+    <h2>Import PGP Key from gmail</h2>
+    <app-pgp-import-online></app-pgp-import-online>
+
+    <h2>Manage PGP Keys</h2>
+    <app-pgp-manage></app-pgp-manage>
+
+    <h2>Manage trustworthy ICT issuer</h2>
+    <app-trustworthy-ict-issuer-manage></app-trustworthy-ict-issuer-manage>
+
+
+  </mat-tab>
+
+  <mat-tab label="View Email">
+    <!-- Show Email -->
+    <app-email-view></app-email-view>
+  </mat-tab>
+
+  <mat-tab label="Write Email">
+    <!-- Email Editor -->
+    <app-email-editor></app-email-editor>
+  </mat-tab>
+
+</mat-tab-group>
+

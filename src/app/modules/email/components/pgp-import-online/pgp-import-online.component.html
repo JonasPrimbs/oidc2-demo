@@ -1,0 +1,49 @@
+<!-- PGP Key Form -->
+<form class="pgp-load" [formGroup]="pgpForm">
+  <ng-container formArrayName="privateKeys">
+
+    <h3>Available private keys to import from gmail ({{privateKeys.length}})</h3>
+    <table mat-table [dataSource]="privateKeys.controls" class="public-key-ownership-table">
+  
+      <ng-container matColumnDef="identity">
+        <th mat-header-cell *matHeaderCellDef> identity </th>
+        <td mat-cell *matCellDef="let element"> {{ element.controls.key.value?.identity.claims.name }} ({{ element.controls.key.value?.identity.claims.email }}) </td>
+      </ng-container>
+
+      <ng-container matColumnDef="key">
+        <th mat-header-cell *matHeaderCellDef> Key-ID </th>
+        <td mat-cell *matCellDef="let element"> {{ element.controls.keyId.value }} </td>
+      </ng-container>
+
+      <ng-container matColumnDef="passphrase">
+        <th mat-header-cell *matHeaderCellDef> passphrase </th>
+        <mat-cell *matCellDef="let element" [formGroup]="element" class="mat-cell-passphrase">
+          <mat-form-field class="mat-form-field-passphrase">
+            <input matInput placeholder="Passphrase*" formControlName="passphrase" type="password">
+          </mat-form-field>
+        </mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="import">
+        <th mat-header-cell *matHeaderCellDef> import </th>
+        <td mat-cell *matCellDef="let element; let index = index;">
+          <button (click)="import(index)" mat-stroked-button>
+            import private key
+          </button>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="delete">
+        <th mat-header-cell *matHeaderCellDef> delete </th>
+        <td mat-cell *matCellDef="let element; let index = index;">
+          <button (click)="delete(index)" mat-stroked-button>
+            delete private key
+          </button>
+        </td>
+      </ng-container>
+      
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </ng-container>
+</form>

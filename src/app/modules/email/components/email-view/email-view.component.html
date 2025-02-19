@@ -1,0 +1,229 @@
+
+<form class="pgp-load" [formGroup]="selectedIdentity">
+  <!-- Identity selection -->
+  <mat-form-field>
+    <mat-label>Identity</mat-label>
+    <mat-select matNativeControl autofocus formControlName="identity" required>
+      <mat-option *ngFor="let identity of identities" [value]="identity">
+        {{ identity.claims.name }} ({{ identity.claims.email }});
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+</form>
+
+<button (click)="next()" mat-stroked-button [disabled]="disabledNext">
+  next
+</button>
+
+<button (click)="previous()" mat-stroked-button>
+  previous
+</button>
+
+<button (click)="loadMail()" mat-stroked-button>
+  reload
+</button>
+
+<div *ngIf="mimeMessage">
+  <mat-card class="email-display-card">
+
+    <!--security status + toggle security infos-->
+    <button mat-button matTooltip="security details" 
+            (click)="toggleSecurityInfo()" 
+            class="security-details-button">
+      <mat-icon *ngIf="mimeMessageSecurity && mimeMessageSecurity.encrypted && mimeMessageSecurity.decryptionSuccessful" 
+                class="icon-display good"
+                svgIcon="lock-check-outline"/>
+      <mat-icon *ngIf="mimeMessageSecurity && allSignaturesValid(mimeMessageSecurity)" 
+                class="icon-display good"
+                svgIcon="certificate"/>
+      <mat-icon *ngIf="mimeMessageSecurity && (!mimeMessageSecurity.encrypted || !mimeMessageSecurity.decryptionSuccessful || !allSignaturesValid(mimeMessageSecurity))" 
+                class="icon-display bad"
+                svgIcon="email-alert-outline"/>
+    </button>
+
+    <div *ngIf="showSecurityInfo && mimeMessageSecurity">      
+      <!--encryption details-->
+      <h3>Encryption details </h3>
+      <p>
+        <span *ngIf="mimeMessageSecurity.encrypted" class="good">
+          Mail is encrypted! <br/>
+        </span>
+        <span *ngIf="!mimeMessageSecurity.encrypted" class="bad">
+          Mail is NOT encrypted! <br/>
+        </span>
+        
+        <span *ngIf="mimeMessageSecurity.decryptionSuccessful" 
+              class="{{ mimeMessageSecurity.decryptionSuccessful ? 'good' : 'bad' }}">
+          Mail could be decrypted 
+        </span>
+      
+        <span *ngIf="mimeMessageSecurity.decryptionErrorMessage" class="bad">
+          Error: {{ mimeMessageSecurity.decryptionErrorMessage }}
+        </span>
+      </p>
+    
+      <!--signature details-->
+      <div *ngFor="let signature of mimeMessageSecurity.signatureVerificationResults">
+        <h3>Signature details </h3>
+        <p>
+          <!--good/bad signature-->
+          <span *ngIf="signature.signatureVerified" class="good">
+            good signature <br/>
+          </span>
+          <span *ngIf="!signature.signatureVerified" class="bad">
+            bad signature <br/>
+          </span>
+  
+          <!--signature error message-->
+          <span *ngIf="signature.signatureErrorMessage" class="bad">
+            {{ signature.signatureErrorMessage }} <br/>
+          </span>
+          
+          <!--signature key ID-->
+          <span *ngIf="signature.keyId">
+            signature (key-ID: {{ signature.keyId }}) <br/>
+          </span>
+          
+          <!--signature date-->
+          <span *ngIf="signature.signedAt">
+            signature date: {{ signature.signedAt }} <br/>
+          </span>
+  
+          <!--matching OIDC2 identity-->          
+          <span *ngIf="signature.oidc2Identity" class="good">
+            associated OIDC² identity available: <br/>
+            email: {{ signature.oidc2Identity.email }} <br/>
+            PGP-fingerprint: {{ signature.oidc2Identity.pgpFingerprint }} <br/>
+            ICT-Issuer: {{ signature.oidc2Identity.issuer }} <br/>
+          </span>
+          <span *ngIf="!signature.oidc2Identity" class="bad">
+            No associated OIDC² identity available: <br/>
+          </span>
+          
+          <!--OIDC2 error message-->
+          <span *ngIf="signature.oidc2ErrorMessage" class="bad">
+            Error: {{ signature.oidc2ErrorMessage }} <br/>
+          </span>
+        </p>
+      </div>  
+      
+      <div *ngFor="let oidc2VerificationResult of mimeMessageSecurity.oidc2VerificationResults">
+        <h3>OIDC² identity</h3>
+        <p>
+          <!--ict verified-->
+          <span *ngIf="oidc2VerificationResult.ictVerified" class="good">
+            valid Identity Certification Token <br/>
+          </span>
+          <span *ngIf="!oidc2VerificationResult.ictVerified" class="bad">
+            invalid Identity Certification Token <br/>
+          </span>
+
+          <!--pop verified-->
+          <span *ngIf="oidc2VerificationResult.popVerified" class="good">
+            valid end to end Proof of Possession Token <br/>
+          </span>
+          <span *ngIf="!oidc2VerificationResult.popVerified" class="bad">
+            invalid end to end Proof of Possession Token <br/>
+          </span>
+
+          <!--OIDC2 error message-->
+          <span *ngIf="oidc2VerificationResult.errorMessage" class="bad">
+            Error: {{ oidc2VerificationResult.errorMessage }} <br/>
+          </span>
+
+          <!--e-mail address of identity-->
+          <span *ngIf="oidc2VerificationResult.identity">
+            <span *ngIf="oidc2VerificationResult.identity.email">
+              E-Mail: {{ oidc2VerificationResult.identity.email }} <br/>
+            </span>
+
+            <!--e-mail verified of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.emailVerified">
+              E-Mail verified <br/>
+            </span>
+            <span *ngIf="!oidc2VerificationResult.identity.emailVerified">
+              E-Mail not verified <br/>
+            </span>
+
+            <!--issuer of ICT-->
+            <span *ngIf="oidc2VerificationResult.identity.issuer">
+              ICT-issuer: {{ oidc2VerificationResult.identity.issuer }} <br/>
+              <button (click)="trustIctIssuer(oidc2VerificationResult)" [disabled]="!canTrustIctIssuer(oidc2VerificationResult)" mat-stroked-button>
+                trust issuer
+              </button>
+              <br/>
+            </span>
+
+            <!--preferred username of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.preferred_username">
+              preferred username: {{ oidc2VerificationResult.identity.preferred_username }} <br/>
+            </span>
+
+            <!--PGP fingerprint of identity-->
+            <span *ngIf="oidc2VerificationResult.identity.pgpFingerprint">
+              PGP-fingerprint: {{ oidc2VerificationResult.identity.pgpFingerprint }} <br/>
+            </span>
+
+            <!--open ict in jwt.io-->
+            <span *ngIf="oidc2VerificationResult.identity.ictJwtIoUrl">
+              open ICT in <a [href]="oidc2VerificationResult.identity.ictJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> 
+              <br/>
+              <button (click)="copyToClipboard(oidc2VerificationResult.identity.ict)" mat-stroked-button>
+                copy ICT to clipboard
+              </button>
+              <br/>
+            </span>
+            <!--open pop in jwt.io-->
+            <span *ngIf="oidc2VerificationResult.identity.popJwtIoUrl">
+              open E2E PoP in <a [href]="oidc2VerificationResult.identity.popJwtIoUrl" target="_blank" rel="noopener noreferrer">jwt.io</a> 
+              <br/>
+              <button (click)="copyToClipboard(oidc2VerificationResult.identity.pop)" mat-stroked-button>
+                copy E2E PoP to clipboard
+              </button>
+              <br/>
+            </span>            
+          </span>
+        </p>
+      </div>
+      
+      <!--PGP key details-->
+      <div *ngIf="mimeMessageSecurity.publicKey">
+        <h3>PGP-key details </h3>
+        <p>
+          Fingerprint: {{ mimeMessageSecurity.publicKey.getFingerprint().toUpperCase() }} <br/>
+          Key-ID: {{ '0x' + mimeMessageSecurity.publicKey.getKeyID().toHex().toUpperCase() }} <br/>
+          User-ID: {{ mimeMessageSecurity.publicKey.getUserIDs() }} <br/>
+          CreationTime: {{ mimeMessageSecurity.publicKey.getCreationTime() }} <br>
+          <button (click)="saveTrustfulPublicKey()" mat-stroked-button [disabled]="disabledSaveTrustfullPublicKey">
+            save public key
+          </button>
+        </p>
+      </div>
+    </div>  
+
+    <mat-card-title>Subject: {{ mimeMessage.payload.subject }}</mat-card-title>
+    <mat-card-subtitle>From: {{mimeMessage.payload.from }}</mat-card-subtitle>
+    <mat-card-subtitle>To: {{ mimeMessage.payload.to }}</mat-card-subtitle>
+    <mat-card-subtitle>Date: {{ mimeMessage.payload.date }}</mat-card-subtitle>
+    
+    <mat-card-content class="email-display-content">
+      <div [innerHTML]="mimeMessage.payload.displayText"></div>
+    </mat-card-content>
+
+    <mat-list>
+      <div mat-subheader>Attachments</div>
+      <div *ngFor="let attachment of mimeMessage.payload.attachments">
+        <a [href]="attachment.getDownloadUrl()"
+          [download]="attachment.name">
+          {{attachment.name}}
+        </a>
+      </div>
+    </mat-list>
+  </mat-card>
+</div>
+
+<div *ngIf="!mimeMessage">
+  No Email to show
+</div>
+
+

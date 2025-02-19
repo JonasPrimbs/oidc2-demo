@@ -1,10 +1,10 @@
 import { NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
+import { BrowserModule, DomSanitizer } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatGridListModule } from '@angular/material/grid-list';
-import { MatIconModule } from '@angular/material/icon';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -51,6 +51,9 @@ import { InstantMessagingModule } from './modules/instant-messaging';
             'https://www.googleapis.com/auth/userinfo.profile',
             'https://www.googleapis.com/auth/gmail.readonly',
             'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.labels',
+            'https://www.googleapis.com/auth/gmail.modify',
+            'https://mail.google.com/',
           ],
         ),
       ]),
@@ -71,4 +74,13 @@ import { InstantMessagingModule } from './modules/instant-messaging';
   ],
   bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule { 
+  constructor(
+    private readonly matIconRegistry: MatIconRegistry,
+    private readonly sanitizer: DomSanitizer,
+    ){
+      matIconRegistry.addSvgIcon('lock-check-outline', sanitizer.bypassSecurityTrustResourceUrl('assets/lock_check_outline.svg'));
+      matIconRegistry.addSvgIcon('certificate', sanitizer.bypassSecurityTrustResourceUrl('assets/certificate.svg'));
+      matIconRegistry.addSvgIcon('email-alert-outline', sanitizer.bypassSecurityTrustResourceUrl('assets/email_alert_outline.svg'));
+  }
+}

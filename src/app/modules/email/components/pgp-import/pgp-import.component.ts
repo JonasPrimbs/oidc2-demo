@@ -4,17 +4,14 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { PgpService } from '../../services/pgp/pgp.service';
 import { Identity, IdentityService } from 'src/app/modules/authentication';
 
+import * as openpgp from 'openpgp';
+
 @Component({
   selector: 'app-pgp-import',
   templateUrl: './pgp-import.component.html',
   styleUrls: ['./pgp-import.component.scss'],
 })
 export class PgpImportComponent {
-  /**
-   * The PGP Key File Input element.
-   */
-  @ViewChild('pgpFileInput')
-  public pgpFileInput?: ElementRef<HTMLInputElement>;
 
   /**
    * Gets the available identities.
@@ -41,11 +38,13 @@ export class PgpImportComponent {
     private readonly identityService: IdentityService,
   ) { }
 
+  private _selectedFile: File | undefined;
+
   /**
    * Gets the selected file.
    */
-  private get selectedFile(): File | undefined {
-    return this.pgpFileInput?.nativeElement.files?.item(0) ?? undefined;
+  public get selectedFile(): File | undefined {
+    return this._selectedFile;
   }
 
   /**
@@ -72,6 +71,16 @@ export class PgpImportComponent {
     });
   }
 
+  onFileSelected(event: Event) {
+
+    let eventTarget = event.target as HTMLInputElement;
+
+    if(eventTarget){
+      this._selectedFile = eventTarget.files?.item(0) ?? undefined;
+      console.log(this.selectedFile);
+    }
+  }
+
   /**
    * Imports the selected PGP Key.
    */
@@ -90,17 +99,33 @@ export class PgpImportComponent {
 
     // Read the PGP private key file and import it.
     const pgpKeyFile = await this.readFile(file);
-    const pgpKeyString = new TextDecoder('utf-8').decode(pgpKeyFile);
-    const pgpPrivateKey = await this.pgpService.importPrivateKey(pgpKeyString);
-
-    // Register the imported private key.
-    this.pgpService.addPrivateKey({
-      key: pgpPrivateKey,
-      identities: identities,
-      passphrase: passphrase,
-    });
+    let pgpPrivateKey: openpgp.PrivateKey | undefined;
+    
+    // try armored and binary version of the key
+    try{
+      const pgpKeyString = new TextDecoder('utf-8').decode(pgpKeyFile);
+      pgpPrivateKey = await this.pgpService.importPrivateKey(pgpKeyString);
+    }
+    catch(err){
+      try{
+        pgpPrivateKey = await this.pgpService.importBinaryPrivateKey(new Uint8Array(pgpKeyFile));
+      }
+      catch(err){
+        return;
+      }
+    }
+    
+    for(let identity of identities){
+      // Register the imported private key for each identity.
+      this.pgpService.addPrivateKey({
+        key: pgpPrivateKey,
+        identity,
+        passphrase: passphrase,
+      });
+    }
 
     // Reset the PGP Form.
     this.pgpForm.reset();
+    this._selectedFile = undefined;
   }
 }

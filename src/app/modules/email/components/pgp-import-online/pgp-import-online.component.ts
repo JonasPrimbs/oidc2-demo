@@ -9,9 +9,10 @@ import { MatTable } from '@angular/material/table';
 import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 
 @Component({
-  selector: 'app-pgp-import-online',
-  templateUrl: './pgp-import-online.component.html',
-  styleUrls: ['./pgp-import-online.component.scss'],
+    selector: 'app-pgp-import-online',
+    templateUrl: './pgp-import-online.component.html',
+    styleUrls: ['./pgp-import-online.component.scss'],
+    standalone: false
 })
 export class PgpImportOnlineComponent {
   

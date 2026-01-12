@@ -7,9 +7,10 @@ import { Identity, IdentityService } from 'src/app/modules/authentication';
 import * as openpgp from 'openpgp';
 
 @Component({
-  selector: 'app-pgp-import',
-  templateUrl: './pgp-import.component.html',
-  styleUrls: ['./pgp-import.component.scss'],
+    selector: 'app-pgp-import',
+    templateUrl: './pgp-import.component.html',
+    styleUrls: ['./pgp-import.component.scss'],
+    standalone: false
 })
 export class PgpImportComponent {
 

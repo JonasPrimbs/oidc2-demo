@@ -12,9 +12,10 @@ import { MimeMessageSecurityResult } from '../../types/mime-message-security-res
 import { Oidc2IdentityVerificationResult } from '../../types/oidc2-identity-verification-result.interface';
 
 @Component({
-  selector: 'app-email-view',
-  templateUrl: './email-view.component.html',
-  styleUrls: ['./email-view.component.scss']
+    selector: 'app-email-view',
+    templateUrl: './email-view.component.html',
+    styleUrls: ['./email-view.component.scss'],
+    standalone: false
 })
 export class EmailViewComponent {
 

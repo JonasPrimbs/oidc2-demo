@@ -8,9 +8,10 @@ import { firstValueFrom } from 'rxjs';
 export const OAUTH_AUTH_CODE_KEY_PREFIX = 'oauth_auth_code_';
 
 @Component({
-  selector: 'app-oidc-redirect',
-  templateUrl: './oidc-redirect.component.html',
-  styleUrls: ['./oidc-redirect.component.scss'],
+    selector: 'app-oidc-redirect',
+    templateUrl: './oidc-redirect.component.html',
+    styleUrls: ['./oidc-redirect.component.scss'],
+    standalone: false
 })
 export class OidcRedirectComponent {
   /**

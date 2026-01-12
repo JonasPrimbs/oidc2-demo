@@ -9,9 +9,10 @@ import { SynchronizationService } from '../../services/synchronization/synchroni
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-pgp-manage',
-  templateUrl: './pgp-manage.component.html',
-  styleUrls: ['./pgp-manage.component.scss'],
+    selector: 'app-pgp-manage',
+    templateUrl: './pgp-manage.component.html',
+    styleUrls: ['./pgp-manage.component.scss'],
+    standalone: false
 })
 export class PgpManageComponent {
   

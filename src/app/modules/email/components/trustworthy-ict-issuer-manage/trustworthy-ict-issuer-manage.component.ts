@@ -8,9 +8,10 @@ import { TrustworthyIctIssuer, TrustworthyIctIssuerExtended } from '../../types/
 import { SynchronizationService } from '../../services/synchronization/synchronization.service';
 
 @Component({
-  selector: 'app-trustworthy-ict-issuer-manage',
-  templateUrl: './trustworthy-ict-issuer-manage.component.html',
-  styleUrls: ['./trustworthy-ict-issuer-manage.component.scss'],
+    selector: 'app-trustworthy-ict-issuer-manage',
+    templateUrl: './trustworthy-ict-issuer-manage.component.html',
+    styleUrls: ['./trustworthy-ict-issuer-manage.component.scss'],
+    standalone: false
 })
 export class TrustworthyIctIssueManageComponent {
   

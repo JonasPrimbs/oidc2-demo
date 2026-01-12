@@ -3,9 +3,10 @@ import { Component, Input } from '@angular/core';
 import { Identity } from '../../classes/identity/identity.class';
 
 @Component({
-  selector: 'identity-menu',
-  templateUrl: './identity-menu.component.html',
-  styleUrls: ['./identity-menu.component.scss'],
+    selector: 'identity-menu',
+    templateUrl: './identity-menu.component.html',
+    styleUrls: ['./identity-menu.component.scss'],
+    standalone: false
 })
 export class IdentityMenuComponent {
   /**

@@ -12,10 +12,10 @@ import { PgpService } from '../../services/pgp/pgp.service';
 import { PgpKeyCertificationService } from '../../services/pgp-key-certification/pgp-key-certification.service';
 
 @Component({
-  selector: 'app-email-editor',
-  templateUrl: './email-editor.component.html',
-  styleUrls: ['./email-editor.component.scss'],
-  // imports: [MatBottomSheetModule],
+    selector: 'app-email-editor',
+    templateUrl: './email-editor.component.html',
+    styleUrls: ['./email-editor.component.scss'],
+    standalone: false
 })
 export class EmailEditorComponent implements OnInit {
 

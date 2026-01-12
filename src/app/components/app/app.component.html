@@ -12,7 +12,9 @@
   <span class="spacer"></span>
 
   <!-- Identity Menus -->
-  <identity-menu *ngFor="let identity of identities" [identity]="identity"></identity-menu>
+  @for (identity of identities; track identity) {
+    <identity-menu [identity]="identity"></identity-menu>
+  }
 
   <!-- Identity Provider Menu Button -->
   <button mat-icon-button matTooltip="Login" [matMenuTriggerFor]="idpMenu">
@@ -21,12 +23,14 @@
   <!-- Identity Provider Menu -->
   <mat-menu #idpMenu="matMenu">
     <!-- Identity Provider Buttons -->
-    <button *ngFor="let idp of identityProviders" mat-menu-item (click)="login(idp)" [matTooltip]="'Login to ' + idp.name">
-      <!-- Identity Provider Image -->
-      <profile-image [picture]="idp.icon" icon="account_balance"></profile-image>
-      <!-- Identity Provider Name -->
-      <span>{{ idp.name }}</span>
-    </button>
+    @for (idp of identityProviders; track idp) {
+      <button mat-menu-item (click)="login(idp)" [matTooltip]="'Login to ' + idp.name">
+        <!-- Identity Provider Image -->
+        <profile-image [picture]="idp.icon" icon="account_balance"></profile-image>
+        <!-- Identity Provider Name -->
+        <span>{{ idp.name }}</span>
+      </button>
+    }
   </mat-menu>
 </mat-toolbar>
 

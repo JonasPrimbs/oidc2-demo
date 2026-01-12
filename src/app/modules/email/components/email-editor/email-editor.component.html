@@ -2,24 +2,32 @@
 <form class="email-form" [formGroup]="emailForm" (ngSubmit)="sendEmail()">
 
   <div>
-    <mat-icon *ngIf="encrypted" 
-              class="icon-display"
-              svgIcon="lock-check-outline"/>
-    <mat-icon *ngIf="signed" 
-              class="icon-display"
-              svgIcon="certificate"/>
-    <mat-icon *ngIf="!encrypted || !signed" 
-              class="icon-display bad"
-              svgIcon="email-alert-outline"/>
+    @if (encrypted) {
+      <mat-icon
+        class="icon-display"
+        svgIcon="lock-check-outline"/>
+    }
+    @if (signed) {
+      <mat-icon
+        class="icon-display"
+        svgIcon="certificate"/>
+    }
+    @if (!encrypted || !signed) {
+      <mat-icon
+        class="icon-display bad"
+        svgIcon="email-alert-outline"/>
+    }
   </div>
 
   <!-- From Selector -->
   <mat-form-field>
     <mat-label>From</mat-label>
     <mat-select matNativeControl autofocus formControlName="from" required>
-      <mat-option *ngFor="let sender of senders" [value]="sender">
-        {{ sender.claims.name }} &#60;{{ sender.claims.email }}&#62;
-      </mat-option>
+      @for (sender of senders; track sender) {
+        <mat-option [value]="sender">
+          {{ sender.claims.name }} &#60;{{ sender.claims.email }}&#62;
+        </mat-option>
+      }
     </mat-select>
   </mat-form-field>
 
@@ -27,9 +35,11 @@
   <mat-form-field>
     <mat-label>PGP Key</mat-label>
     <mat-select matNativeControl autofocus formControlName="key">
-      <mat-option *ngFor="let key of availableKeys" [value]="key">
-        {{ key.name }}
-      </mat-option>
+      @for (key of availableKeys; track key) {
+        <mat-option [value]="key">
+          {{ key.name }}
+        </mat-option>
+      }
     </mat-select>
   </mat-form-field>
 
@@ -37,9 +47,11 @@
   <mat-form-field>
     <mat-label>Identities</mat-label>
     <mat-select matNativeControl autofocus formControlName="identities" multiple>
-      <mat-option *ngFor="let id of availableIdentities" [value]="id">
-        {{ id.claims.name }} ({{ id.identityProvider.name }})
-      </mat-option>
+      @for (id of availableIdentities; track id) {
+        <mat-option [value]="id">
+          {{ id.claims.name }} ({{ id.identityProvider.name }})
+        </mat-option>
+      }
     </mat-select>
   </mat-form-field>
 

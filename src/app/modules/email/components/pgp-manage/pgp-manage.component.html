@@ -14,19 +14,23 @@
 
   <ng-container matColumnDef="privAction">
     <th mat-header-cell *matHeaderCellDef> action </th>
-    <td mat-cell *matCellDef="let privateKey"> 
-      <button *ngIf="!privateKey.messageId"
+    <td mat-cell *matCellDef="let privateKey">
+      @if (!privateKey.messageId) {
+        <button
           (click) ="savePrivateKey(privateKey)" mat-stroked-button>
-        save private key
-      </button>
+          save private key
+        </button>
+      }
 
-      <button *ngIf="privateKey.messageId"
-              (click) ="deletePrivateKey(privateKey)" mat-stroked-button>
-        delete private key
-      </button>
+      @if (privateKey.messageId) {
+        <button
+          (click) ="deletePrivateKey(privateKey)" mat-stroked-button>
+          delete private key
+        </button>
+      }
     </td>
   </ng-container>
-  
+
   <tr mat-header-row *matHeaderRowDef="displayedPrivateKeyColumns"></tr>
   <tr mat-row *matRowDef="let row; columns: displayedPrivateKeyColumns;"></tr>
 </table>
@@ -53,13 +57,13 @@
 
   <ng-container matColumnDef="pubDelete">
     <th mat-header-cell *matHeaderCellDef> delete key </th>
-    <td mat-cell *matCellDef="let publicKey"> 
+    <td mat-cell *matCellDef="let publicKey">
       <button (click) ="deletePublicKey(publicKey)" mat-stroked-button>
         delete public key
-      </button>  
+      </button>
     </td>
   </ng-container>
-  
+
   <tr mat-header-row *matHeaderRowDef="displayedPublicKeyColumns"></tr>
   <tr mat-row *matRowDef="let row; columns: displayedPublicKeyColumns;"></tr>
 </table>

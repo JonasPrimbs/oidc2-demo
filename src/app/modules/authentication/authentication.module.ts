@@ -12,23 +12,29 @@ import { ProfileImageComponent } from './components/profile-image/profile-image.
 import { OidcRedirectComponent } from './pages/oidc-redirect/oidc-redirect.component';
 import { IdentityService } from './services/identity/identity.service';
 
-@NgModule({ declarations: [
-        IdentityMenuComponent,
-        OidcRedirectComponent,
-        ProfileImageComponent,
-    ],
-    exports: [
-        IdentityMenuComponent,
-        OidcRedirectComponent,
-        ProfileImageComponent,
-    ], imports: [CommonModule,
-        MatButtonModule,
-        MatIconModule,
-        MatMenuModule,
-        MatTooltipModule], providers: [
-        IdentityService,
-        provideHttpClient(withInterceptorsFromDi()),
-    ] })
+@NgModule({
+  declarations: [
+    IdentityMenuComponent,
+    OidcRedirectComponent,
+    ProfileImageComponent,
+  ],
+  exports: [
+    IdentityMenuComponent,
+    OidcRedirectComponent,
+    ProfileImageComponent,
+  ],
+  imports: [
+    CommonModule,
+    MatButtonModule,
+    MatIconModule,
+    MatMenuModule,
+    MatTooltipModule
+],
+  providers: [
+    IdentityService,
+    provideHttpClient(withInterceptorsFromDi()),
+  ],
+})
 export class AuthenticationModule {
   static forRoot(options: AuthenticationOptions): ModuleWithProviders<AuthenticationModule> {
     return {

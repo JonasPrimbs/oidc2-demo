@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, provideZonelessChangeDetection } from '@angular/core';
 import { BrowserModule, DomSanitizer } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
@@ -73,6 +73,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
     MatTooltipModule,
   ],
   bootstrap: [AppComponent],
+  providers: [provideZonelessChangeDetection()],
 })
 export class AppModule { 
   constructor(

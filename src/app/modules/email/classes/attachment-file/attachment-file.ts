@@ -73,7 +73,7 @@ export class AttachmentFile implements EmailPart {
   public getDownloadUrl(): string{    
     if(this.downloadUrl === undefined){
       let content = decodeBody(this.body, this.encoding);
-      const blob = new Blob([content], { type: this.contentType });
+      const blob = new Blob([new Uint8Array(content)], { type: this.contentType });
       this.downloadUrl = window.URL.createObjectURL(blob);
     }
     return this.downloadUrl;

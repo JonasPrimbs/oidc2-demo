@@ -66,10 +66,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "oidc2-demo:build:production"
+              "buildTarget": "oidc2-demo:build:production"
             },
             "development": {
-              "browserTarget": "oidc2-demo:build:development"
+              "buildTarget": "oidc2-demo:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -77,7 +77,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "oidc2-demo:build"
+            "buildTarget": "oidc2-demo:build"
           }
         },
         "test": {

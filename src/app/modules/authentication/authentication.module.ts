@@ -1,6 +1,6 @@
 import { ModuleWithProviders, NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -12,29 +12,23 @@ import { ProfileImageComponent } from './components/profile-image/profile-image.
 import { OidcRedirectComponent } from './pages/oidc-redirect/oidc-redirect.component';
 import { IdentityService } from './services/identity/identity.service';
 
-@NgModule({
-  imports: [
-    CommonModule,
-    HttpClientModule,
-    MatButtonModule,
-    MatIconModule,
-    MatMenuModule,
-    MatTooltipModule,
-  ],
-  declarations: [
-    IdentityMenuComponent,
-    OidcRedirectComponent,
-    ProfileImageComponent,
-  ],
-  providers: [
-    IdentityService,
-  ],
-  exports: [
-    IdentityMenuComponent,
-    OidcRedirectComponent,
-    ProfileImageComponent,
-  ],
-})
+@NgModule({ declarations: [
+        IdentityMenuComponent,
+        OidcRedirectComponent,
+        ProfileImageComponent,
+    ],
+    exports: [
+        IdentityMenuComponent,
+        OidcRedirectComponent,
+        ProfileImageComponent,
+    ], imports: [CommonModule,
+        MatButtonModule,
+        MatIconModule,
+        MatMenuModule,
+        MatTooltipModule], providers: [
+        IdentityService,
+        provideHttpClient(withInterceptorsFromDi()),
+    ] })
 export class AuthenticationModule {
   static forRoot(options: AuthenticationOptions): ModuleWithProviders<AuthenticationModule> {
     return {

@@ -1,6 +1,6 @@
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,43 +28,37 @@ import { PgpKeyAuthenticationService } from './services/pgp-key-authentication/p
 import { PgpService } from './services/pgp/pgp.service';
 import { MatSnackBarModule, MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 
-@NgModule({
-  imports: [
-    AuthenticationModule,
-    CommonModule,
-    HttpClientModule,
-    MatSnackBarModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatTabsModule,
-    MatTableModule,
-    MatListModule,
-    ReactiveFormsModule,
-    TextFieldModule,
-  ],
-  declarations: [
-    EmailComponent,
-    EmailEditorComponent,
-    EmailViewComponent,
-    PgpImportComponent,
-    PgpImportOnlineComponent,
-    PgpManageComponent,
-    TrustworthyIctIssueManageComponent,
-  ],
-  providers: [
-    GmailApiService,
-    EmailService,
-    PgpService,
-    PgpKeyAuthenticationService,
-    {provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: {duration: 2500}}
-  ],
-  exports: [
-    EmailComponent,
-  ],
-})
+@NgModule({ declarations: [
+        EmailComponent,
+        EmailEditorComponent,
+        EmailViewComponent,
+        PgpImportComponent,
+        PgpImportOnlineComponent,
+        PgpManageComponent,
+        TrustworthyIctIssueManageComponent,
+    ],
+    exports: [
+        EmailComponent,
+    ], imports: [AuthenticationModule,
+        CommonModule,
+        MatSnackBarModule,
+        MatButtonModule,
+        MatCheckboxModule,
+        MatCardModule,
+        MatFormFieldModule,
+        MatIconModule,
+        MatInputModule,
+        MatSelectModule,
+        MatTabsModule,
+        MatTableModule,
+        MatListModule,
+        ReactiveFormsModule,
+        TextFieldModule], providers: [
+        GmailApiService,
+        EmailService,
+        PgpService,
+        PgpKeyAuthenticationService,
+        { provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { duration: 2500 } },
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class EmailModule { }

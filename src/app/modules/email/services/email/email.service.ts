@@ -95,7 +95,7 @@ export class EmailService {
     let decryptionSuccessful :  boolean | undefined = undefined; 
     let decryptionErrorMessage : string | undefined = undefined;
     let clearetextMimeMessage : MimeMessage = mimeMessage;
-    let signatures : openpgp.VerificationResult[] = [];
+    let signatures : any[] = [];
     let publicKey : openpgp.PublicKey | undefined = undefined;
 
     // decryption

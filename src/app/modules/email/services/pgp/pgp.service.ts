@@ -105,11 +105,11 @@ export class PgpService {
    * @param passphrase Passphrase.
    * @returns Generated key pair.
    */
-  public async generateKeyPair(userId: { name: string, email: string }, passphrase: string): Promise<openpgp.KeyPair> {
+  public async generateKeyPair(userId: { name: string, email: string }, passphrase: string): Promise<{privateKey: openpgp.PrivateKey, publicKey: openpgp.PublicKey}> {
     // Generate the key pair.
     const generatedArmoredKeyPair = await openpgp.generateKey({
       type: 'ecc',
-      curve: 'p384',
+      curve: 'nistP384',
       userIDs: [userId],
       passphrase: passphrase,
       format: 'armored',
@@ -159,7 +159,7 @@ export class PgpService {
    * @param armoredKeyPair Key pair to import.
    * @returns Imported PGP key pair.
    */
-  public async importKeyPair(armoredKeyPair: { publicKey: string, privateKey: string }): Promise<openpgp.KeyPair> {
+  public async importKeyPair(armoredKeyPair: { publicKey: string, privateKey: string }): Promise<{privateKey: openpgp.PrivateKey, publicKey: openpgp.PublicKey}> {
     // Import each key pair.
     const [privateKey, publicKey] = await Promise.all([
       this.importPrivateKey(armoredKeyPair.privateKey),

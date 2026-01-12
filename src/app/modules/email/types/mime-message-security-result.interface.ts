@@ -20,5 +20,5 @@ export interface DecryptedAndVerifiedMimeMessage{
   readonly decryptionSuccessful?: boolean;
   readonly decryptionErrorMessage?: string;
   readonly publicKey?: openpgp.PublicKey;
-  readonly signatures: openpgp.VerificationResult[];
+  readonly signatures: any[];
 }

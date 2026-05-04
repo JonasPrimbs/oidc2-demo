@@ -1,0 +1,20 @@
+.pgp-key > * {
+  margin-left: 1em;
+  margin-right: 1em;
+}
+
+.mat-column-pubIdentity{
+  width: 30%;
+}
+
+.mat-column-privIdentity{
+  width: 30%;
+}
+
+.mat-column-privKey{
+  width: 15%;
+}
+
+.mat-column-pubKey{
+  width: 15%;
+}

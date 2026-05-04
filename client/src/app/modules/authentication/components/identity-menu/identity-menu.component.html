@@ -1,0 +1,19 @@
+<!-- Menu Button -->
+<button mat-icon-button [matMenuTriggerFor]="menu" [matTooltip]="name">
+  <profile-image [picture]="identity?.claims?.picture"></profile-image>
+</button>
+
+<!-- Menu -->
+<mat-menu #menu="matMenu">
+  <!-- Identity Info -->
+  <div mat-menu-item>
+    <profile-image [picture]="identity?.claims?.picture"></profile-image>
+    <span>{{ name }}</span>
+  </div>
+
+  <!-- Logout Button -->
+  <button mat-menu-item [disabled]="!identity" (click)="identity?.logout()">
+    <mat-icon>logout</mat-icon>
+    <span>Logout</span>
+  </button>
+</mat-menu>

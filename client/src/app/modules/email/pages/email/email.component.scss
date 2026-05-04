@@ -1,0 +1,9 @@
+.span {
+  margin: 0.5em;
+}
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

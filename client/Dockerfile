@@ -1,11 +1,11 @@
-FROM node:18 AS builder
+FROM node:22 AS builder
 
 # Update packages
-RUN apt-get update && apt-get upgrade -y && npm install -g npm
+RUN apt-get update && apt-get upgrade -y
 
 # Copy source files
 WORKDIR /app
-COPY ./src /app/src
+COPY ./src ./src
 COPY ./angular.json .
 COPY ./package.json .
 COPY ./tsconfig.app.json .
@@ -19,7 +19,7 @@ RUN npm install
 RUN npm run build
 
 
-FROM nginx:1.25-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 
 # Update packages
 RUN apk update

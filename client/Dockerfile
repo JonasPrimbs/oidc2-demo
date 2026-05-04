@@ -1,7 +1,7 @@
-FROM node:22 AS builder
+FROM node:24 AS builder
 
 # Update packages
-RUN apt-get update && apt-get upgrade -y
+RUN apt-get update && apt-get upgrade -y && npm install -g npm@latest
 
 # Copy source files
 WORKDIR /app
@@ -27,6 +27,6 @@ RUN apk update
 # Copy nginx config
 COPY ./nginx.conf /etc/nginx/conf.d/nginx.conf
 # Copy static files
-COPY --from=builder /app/dist/oidc2-demo /var/www/app
+COPY --from=builder /app/dist/browser /var/www/app
 
 EXPOSE 4200

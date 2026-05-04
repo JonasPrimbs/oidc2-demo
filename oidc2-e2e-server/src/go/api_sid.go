@@ -182,7 +182,7 @@ func requestOpPublicKey(ictHeaderEnc string, ictBodyEnc string) (*rsa.PublicKey,
 	/*
 		/////////////////////////////////////////////
 		// This is a dirty workaround for the current testing playground I'm on
-		if iss == "http://op.localhost/realms/ict" {
+		if iss == "http://op.example.com/realms/ict" {
 			iss = "http://localhost:8080/realms/ict"
 		}
 		/////////////////////////////////////////////

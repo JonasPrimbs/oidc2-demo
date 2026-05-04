@@ -28,8 +28,8 @@ import { E2EEncModule } from './modules/e2e-enc/e2e-enc.module';
       new AuthenticationOptions([
         new IdentityProvider(
           'Keycloak',
-          'http://op.localhost/realms/ict',
-          'oidc2-e2e-enc',
+          'https://op.example.com/realms/oidc2',
+          'oidc2demo',
           undefined,
           'assets/keycloak_logo.png',
           [

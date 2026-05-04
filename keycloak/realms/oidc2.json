@@ -314,7 +314,7 @@
     },
     {
       "id": "5e20ecef-aefc-45fa-803a-95463b1ec3c4",
-      "clientId": "oidc2demo",
+      "clientId": "oidc2-demo",
       "name": "OIDC² Demo",
       "description": "OIDC² demo application",
       "rootUrl": "https://oidc2demo.example.com/",
@@ -328,7 +328,7 @@
         "https://oidc2demo.example.com/oidc-redirect"
       ],
       "webOrigins": [
-        "https://oidc2demo.example.com"
+        "https://oidc2demo.example.com/"
       ],
       "notBefore": 0,
       "bearerOnly": false,

@@ -27,7 +27,7 @@ import { InstantMessagingModule } from './modules/instant-messaging';
       new AuthenticationOptions([
         new IdentityProvider(
           'Keycloak',
-          'https://op.example.com/realms/ict',
+          'https://op.example.com/realms/oidc2',
           'oidc2-demo',
           undefined,
           'assets/keycloak_logo.png',

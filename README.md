@@ -2,26 +2,14 @@
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 16.2.0.
 
-## Development server
+## Test Deployment
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
-
-## Code scaffolding
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+1. Copy `example.env` to `.env` and adjust values.
+2. Run `./scripts/generate-ca-config.sh`.
+3. Run `./scripts/generate-secrets.sh`.
+4. Import `./.secrets/ca_root.crt` to your browser.
+5. Run `docker compose up --build`.
+6. Go to https://op.example.com/ and log in with username `admin` and password `$KC_BOOTSTRAP_ADMIN_PASSWORD` from `./.secrets/op.env`.
+7. Switch to realm `oidc2`, go to *Realm settings > Keys* and add `./.secrets/op_private.key` as a new RSA provider.
+8. Set the `Kid` of this new `rsa` provider as `KID` in `.env`.
+9. Stop the Docker composition with CTRL+C and start it again with `docker compose up -d`

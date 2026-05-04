@@ -27,6 +27,6 @@ RUN apk update
 # Copy nginx config
 COPY ./nginx.conf /etc/nginx/conf.d/nginx.conf
 # Copy static files
-COPY --from=builder /app/dist/browser /var/www/app
+COPY --from=builder /app/dist/oidc2-demo/browser /var/www/app
 
 EXPOSE 4200
